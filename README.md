@@ -1,6 +1,6 @@
-# SmartBus App
+# Transit_Link
 
-Real-Time Public Bus/Train Tracking & Digital Ticketing App
+Transit Link — A public transport solution combining real-time tracking, route discovery, digital tickets, and QR verification.
 
 ## Group 151 - Transit Link
 
@@ -22,7 +22,17 @@ Real-Time Public Bus/Train Tracking & Digital Ticketing App
 3. Scan the QR code with Expo Go app (phone) or press `w` for web.
 
 ## Tech Stack
+
 - React Native (Expo)
 - React Navigation
-- Local JSON Data
+- AsyncStorage (Local Storage)
 - React Native Maps
+
+## Features
+
+- Live Bus Tracking
+- ETA Display
+- Route Search
+- Digital Ticketing
+- Transport Officer Dashboard
+- Login/Profile
