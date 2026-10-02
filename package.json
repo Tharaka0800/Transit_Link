@@ -14,7 +14,8 @@
     "react-native-maps": "1.27.2",
     "react-native-safe-area-context": "^5.10.1",
     "react-native-screens": "^4.28.0",
-    "react-native-web": "^0.21.2"
+    "react-native-web": "^0.21.2",
+    "react-native-webview": "13.16.1"
   },
   "scripts": {
     "start": "expo start",
