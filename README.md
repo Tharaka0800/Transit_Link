@@ -36,3 +36,21 @@ Transit Link — A public transport solution combining real-time tracking, route
 - Digital Ticketing
 - Transport Officer Dashboard
 - Login/Profile
+
+## Features Implemented
+
+- Live Bus Tracking on Map
+- Real-time ETA Display
+- Route Search with CRUD
+- Search Results with Filters
+- Bus Live Status
+- Favourite Routes (Create, Read, Update, Delete)
+- Local Data Persistence with AsyncStorage
+
+## Screens
+
+1. Home / Live Map
+2. Route Search
+3. Search Results
+4. Bus Live Status
+5. ETA / Arrival Time
