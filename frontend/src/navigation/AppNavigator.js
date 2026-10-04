@@ -11,6 +11,7 @@ import Notifications from '../screens/Notifications';
 import HelpSupport from '../screens/HelpSupport';
 import RoutesScreen from '../screens/RoutesScreen';
 import TicketsScreen from '../screens/TicketsScreen';
+import FareInformation from '../screens/FareInformation';
 import { getToken } from '../services/api';
 import { colors } from '../theme';
 
@@ -91,6 +92,7 @@ export default function AppNavigator() {
       <Stack.Screen name="MainTabs" component={MainTabs} />
       <Stack.Screen name="Notifications" component={Notifications} />
       <Stack.Screen name="HelpSupport" component={HelpSupport} />
+      <Stack.Screen name="FareInformation" component={FareInformation} />
     </Stack.Navigator>
   );
 }

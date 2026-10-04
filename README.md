@@ -78,6 +78,19 @@ Android emulator uses `http://10.0.2.2:5000/api` automatically.
 | POST | `/api/notifications` | Create notification |
 | DELETE | `/api/notifications/:id` | Dismiss notification |
 
+## Screens (Milestone prototypes)
+
+| Screen | Status |
+|--------|--------|
+| Login / Register / Forgot Password | Done |
+| Home | Done |
+| Profile / Edit Profile / Settings | Done |
+| Notifications | Done |
+| Help & Support | Done |
+| My Tickets (Upcoming / Past) | Done |
+| Favourite Routes | Done (Routes tab) |
+| Fare Information (Calculator / General) | Done |
+
 ## Design
 
 - Brand: TransitLink

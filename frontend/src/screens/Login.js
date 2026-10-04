@@ -9,6 +9,8 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  Dimensions,
+  StatusBar,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,8 +19,9 @@ import Button from '../components/Button';
 import { loginUser, registerUser, saveAuth } from '../services/api';
 import { colors } from '../theme';
 
-const HERO =
-  'https://images.unsplash.com/photo-1544620341-11cb2aa7b402?auto=format&fit=crop&w=900&q=80';
+const HERO = require('../../assets/login-hero.png');
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const HERO_HEIGHT = Math.max(220, Math.round(SCREEN_HEIGHT * 0.32));
 
 const Login = ({ navigation }) => {
   const [mode, setMode] = useState('login'); // login | register | forgot
@@ -135,6 +138,11 @@ const Login = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.safe} edges={['bottom']}>
+      <StatusBar
+        translucent
+        backgroundColor="transparent"
+        barStyle="dark-content"
+      />
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -144,7 +152,9 @@ const Login = ({ navigation }) => {
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={styles.scroll}
         >
-          <Image source={{ uri: HERO }} style={styles.hero} />
+          <View style={styles.heroWrap}>
+            <Image source={HERO} style={styles.hero} resizeMode="cover" />
+          </View>
 
           <View style={styles.content}>
             <View style={styles.logoBox}>
@@ -243,20 +253,26 @@ const styles = StyleSheet.create({
   scroll: {
     flexGrow: 1,
   },
+  heroWrap: {
+    width: SCREEN_WIDTH,
+    height: HERO_HEIGHT,
+    overflow: 'hidden',
+    backgroundColor: '#7EB6E8',
+  },
   hero: {
     width: '100%',
-    height: 200,
+    height: '100%',
   },
   content: {
     flex: 1,
     paddingHorizontal: 24,
-    paddingTop: 20,
+    paddingTop: 18,
     paddingBottom: 32,
     alignItems: 'center',
     backgroundColor: colors.white,
-    marginTop: -16,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    marginTop: -20,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
   },
   logoBox: {
     width: 48,

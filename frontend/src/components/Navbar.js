@@ -9,6 +9,7 @@ const Navbar = ({
   showBack = true,
   rightIcon,
   onRightPress,
+  rightIconColor,
   titleColor = colors.brand,
 }) => {
   return (
@@ -32,7 +33,11 @@ const Navbar = ({
       <View style={[styles.side, styles.sideRight]}>
         {rightIcon ? (
           <TouchableOpacity onPress={onRightPress} hitSlop={12} style={styles.iconBtn}>
-            <Ionicons name={rightIcon} size={22} color={colors.gray700} />
+            <Ionicons
+              name={rightIcon}
+              size={24}
+              color={rightIconColor || colors.gray700}
+            />
           </TouchableOpacity>
         ) : null}
       </View>

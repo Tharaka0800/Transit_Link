@@ -91,6 +91,20 @@ const Home = ({ navigation }) => {
             <Ionicons name="chevron-forward" size={20} color={colors.gray300} />
           </TouchableOpacity>
 
+          <TouchableOpacity
+            style={styles.card}
+            onPress={() => navigation.navigate('FareInformation')}
+          >
+            <View style={styles.cardIcon}>
+              <Ionicons name="calculator" size={22} color={colors.brand} />
+            </View>
+            <View style={styles.cardText}>
+              <Text style={styles.cardTitle}>Fare Information</Text>
+              <Text style={styles.cardSub}>Calculate bus & train fares</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={colors.gray300} />
+          </TouchableOpacity>
+
           <View style={styles.quickBox}>
             <Text style={styles.quickTitle}>Quick access</Text>
             <Text style={styles.quickSub}>
