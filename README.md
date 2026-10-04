@@ -1,56 +1,87 @@
-# Transit_Link
+# TransitLink — Login / Profile & Supporting Screens
 
-Transit Link — A public transport solution combining real-time tracking, route discovery, digital tickets, and QR verification.
+Expo (React Native) + Node.js/Express module for **TransitLink**, covering authentication, profile management, notifications, and help & support.
 
-## Group 151 - Transit Link
+## Folder Structure
 
-| Name | Student ID | Workload |
-|------|-----------|----------|
-| W.M.D.T. Wanasinghe | IT23594722 | Digital Ticket + QR Ticketing |
-| Akshayan Ilankovan | IT23587106 | Transport Officer Dashboard |
-| Isanka A.A.T | IT23578432 | Live Bus Tracking + ETA + Route Search |
-| Amasha H.M.T | IT23603622 | Login/Profile + Supporting Screens |
+```
+./
+├── frontend/                          # Expo React Native app
+│   ├── src/
+│   │   ├── components/                # Navbar, Button, FormInput, BottomNav
+│   │   ├── screens/                   # Home, Login, Profile, Notifications, HelpSupport
+│   │   ├── navigation/                # AppNavigator.js
+│   │   ├── services/                  # api.js (Axios + AsyncStorage)
+│   │   └── theme.js
+│   ├── App.js
+│   ├── app.json
+│   └── package.json
+├── backend/                           # Node.js REST API
+│   ├── controllers/
+│   ├── models/
+│   ├── routes/
+│   ├── middleware/
+│   ├── config/
+│   ├── server.js
+│   ├── package.json
+│   └── .env
+└── README.md
+```
 
-## Setup Instructions
+## Prerequisites
 
-1. Install dependencies:
-   npm install
+- Node.js 18+
+- MongoDB Atlas or local MongoDB
+- Expo Go / Android emulator / iOS simulator
 
-2. Run the app:
-   npx expo start
+## Quick Start
 
-3. Scan the QR code with Expo Go app (phone) or press `w` for web.
+### 1. Backend
 
-## Tech Stack
+```bash
+cd backend
+npm install
+npm run seed
+npm run dev
+```
 
-- React Native (Expo)
-- React Navigation
-- AsyncStorage (Local Storage)
-- React Native Maps
+API: `http://localhost:5000`
 
-## Features
+### 2. Frontend (Expo)
 
-- Live Bus Tracking
-- ETA Display
-- Route Search
-- Digital Ticketing
-- Transport Officer Dashboard
-- Login/Profile
+```bash
+cd frontend
+npm install
+npx expo start
+```
 
-## Features Implemented
+Android emulator uses `http://10.0.2.2:5000/api` automatically.
 
-- Live Bus Tracking on Map
-- Real-time ETA Display
-- Route Search with CRUD
-- Search Results with Filters
-- Bus Live Status
-- Favourite Routes (Create, Read, Update, Delete)
-- Local Data Persistence with AsyncStorage
+### Demo accounts
 
-## Screens
+| Role | Email | Password |
+|------|-------|----------|
+| Primary | `tharukee01@gmail.com` | `password123` |
+| Secondary | `passenger.demo@transitlink.lk` | `password123` |
+| Admin | `admin@transitlink.lk` | `admin123` |
 
-1. Home / Live Map
-2. Route Search
-3. Search Results
-4. Bus Live Status
-5. ETA / Arrival Time
+## REST API (CRUD)
+
+| Method | Endpoint | Operation |
+|--------|----------|-----------|
+| POST | `/api/users/register` | Create user |
+| POST | `/api/users/login` | Authenticate + JWT |
+| GET | `/api/users/profile` | Read profile |
+| PUT | `/api/users/profile` | Update profile |
+| DELETE | `/api/users/profile` | Delete account |
+| GET | `/api/notifications` | Read notifications |
+| POST | `/api/notifications` | Create notification |
+| DELETE | `/api/notifications/:id` | Dismiss notification |
+
+## Design
+
+- Brand: TransitLink
+- Primary: Blue `#2563EB`
+- Styling: React Native `StyleSheet.create`
+- Navigation: `@react-navigation/native` + bottom tabs (Home, Routes, Tickets, Profile)
+- Session: AsyncStorage for JWT
