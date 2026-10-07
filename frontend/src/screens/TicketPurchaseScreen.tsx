@@ -15,7 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import Navbar from '../components/Navbar';
 import Button from '../components/Button';
-import FormInput from '../components/FormInput';
+import JourneyDateTimePicker from '../components/ticketing/JourneyDateTimePicker';
 import { getStoredUser, getToken } from '../services/api';
 import {
   Journey,
@@ -514,31 +514,15 @@ export default function TicketPurchaseScreen() {
                     ))}
                   </View>
                   {!travelNow && (
-                    <>
-                      <FormInput
-                        label="Travel date (YYYY-MM-DD)"
-                        leftIcon="calendar-outline"
-                        value={departure.date}
-                        onChangeText={(date: string) => {
-                          setDeparture((d) => ({ ...d, date }));
-                          setDateError(null);
-                        }}
-                        placeholder="YYYY-MM-DD"
-                        editable={!busy}
-                      />
-                      <FormInput
-                        label="Journey start time (24-hour HH:mm)"
-                        leftIcon="time-outline"
-                        value={departure.time}
-                        onChangeText={(time: string) => {
-                          setDeparture((d) => ({ ...d, time }));
-                          setDateError(null);
-                        }}
-                        placeholder="HH:mm"
-                        editable={!busy}
-                        error={dateError || undefined}
-                      />
-                    </>
+                    <JourneyDateTimePicker
+                      value={departure}
+                      onChange={(value) => {
+                        setDeparture(value);
+                        setDateError(null);
+                      }}
+                      disabled={busy}
+                      error={dateError}
+                    />
                   )}
                   <Text style={styles.hint}>
                     {travelNow

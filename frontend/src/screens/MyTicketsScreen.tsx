@@ -23,6 +23,7 @@ import {
 } from '../services/ticketService';
 import { currentTicketStatus } from '../utils/ticketUtils';
 import { colors } from '../theme';
+import useTicketAutoRefresh from '../hooks/useTicketAutoRefresh';
 
 export default function MyTicketsScreen() {
   const [tickets, setTickets] = useState<Ticket[]>([]);
@@ -36,11 +37,12 @@ export default function MyTicketsScreen() {
     const timer = setInterval(() => setClock((n) => n + 1), 30000);
     return () => clearInterval(timer);
   }, []);
-  const load = useCallback(async () => {
+  const load = useCallback(async (showLoading = true) => {
     const generation = ++request.current;
-    setLoading(true);
-    setError(null);
-    setTickets([]);
+    if (showLoading) {
+      setLoading(true);
+      setError(null);
+    }
     try {
       if (!(await getToken())) {
         if (request.current === generation) {
@@ -53,6 +55,7 @@ export default function MyTicketsScreen() {
       if (request.current === generation) {
         setTickets(data);
         setSignedOut(false);
+        setError(null);
       }
     } catch (failure) {
       if (request.current === generation) {
@@ -66,6 +69,7 @@ export default function MyTicketsScreen() {
       if (request.current === generation) setLoading(false);
     }
   }, []);
+  useTicketAutoRefresh(useCallback(() => load(false), [load]));
   useFocusEffect(
     useCallback(() => {
       void load();
@@ -186,6 +190,12 @@ export default function MyTicketsScreen() {
                     router.push({
                       pathname: '/ticketing/[id]',
                       params: { id: ticket.id },
+                    })
+                  }
+                  onShowQR={() =>
+                    router.push({
+                      pathname: '/ticketing/[id]',
+                      params: { id: ticket.id, present: '1' },
                     })
                   }
                 />

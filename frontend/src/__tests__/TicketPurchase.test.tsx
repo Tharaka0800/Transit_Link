@@ -1,5 +1,6 @@
 import React from 'react';
-import { Text, TextInput, TouchableOpacity } from 'react-native';
+import { Text, TouchableOpacity } from 'react-native';
+import JourneyDateTimePicker from '../components/ticketing/JourneyDateTimePicker';
 import { act, create, ReactTestRenderer } from 'react-test-renderer';
 import { router } from 'expo-router';
 import TicketPurchaseScreen from '../screens/TicketPurchaseScreen';
@@ -164,11 +165,10 @@ test('duplicate presses and uncertain network retries keep the same purchase quo
 test('scheduled invalid date cannot request a quote', async () => {
   await renderJourney();
   await press('Choose date and time');
-  const date = screen.root
-    .findAllByType(TextInput)
-    .find((n) => n.props.accessibilityLabel === 'Travel date (YYYY-MM-DD)')!;
   act(() => {
-    date.props.onChangeText('2026-02-30');
+    screen.root
+      .findByType(JourneyDateTimePicker)
+      .props.onChange({ date: '2026-02-30', time: '12:00' });
   });
   await press('Review ticket');
   expect(content()).toContain('Choose a valid date');

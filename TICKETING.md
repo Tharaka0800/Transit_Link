@@ -37,15 +37,15 @@ The project remains on Expo SDK 51. Native testing requires a compatible Expo Go
 
 1. Sign in through the existing login screen; open Tickets from the tab, Home, or Profile.
 2. Select New Ticket, Bus/Train, and an available journey. Search origin, destination, or route code.
-3. Select the configured ticket type. Travel now is the default; Schedule accepts a local date/time within the next 30 days.
+3. Select the configured ticket type. Travel now is the default; Schedule opens a calendar and 24-hour time selection sheet for the next 30 days. Confirm the time to apply changes; closing the sheet discards draft changes.
 4. Review the server fare, validity, passenger name, and demo purchase disclosure. Quotes expire after at most five minutes (or at the scheduled start).
 5. Confirm the demo purchase. The backend issues the ticket and returns its unique reference and opaque QR payload.
-6. Present the QR fullscreen, or expand the selectable manual token if scanning is unavailable.
-7. Active/upcoming tickets remain in the active list; used/expired tickets remain in History. Pull down to refresh after verification.
+6. Present the QR fullscreen, or expand the selectable manual token if scanning is unavailable. Active ticket cards also offer Show QR, opening fullscreen presentation directly after authenticated detail retrieval.
+7. Active/upcoming tickets remain in the active list; used/expired tickets remain in History. Visible ticket screens refresh from the server every 15 seconds and immediately when the app returns to the foreground. Officer redemption closes an open QR on the next successful refresh. Pull down to refresh manually if needed.
 
 A confirmation timeout may mean the server already issued the ticket. The retry action resends the same quote ID and returns the same ticket. Check My Tickets before starting another purchase. Quotes are unique purchase keys; separate deliberate purchases can legitimately produce multiple tickets for the same journey.
 
-Times display in the device's timezone. Server time remains authoritative for verification. Active/expired badges refresh locally while the screens remain open; retrieving/refreshing a ticket gets its current server status. Verification requires a live backend connection. Offline ticket caching is not implemented.
+Times display in the device's timezone. Server time remains authoritative for verification. Active/expired badges refresh locally while the screens remain open. Automatic server refresh pauses when a ticket screen loses focus or the app is in the background, preserves displayed tickets during loading, and prevents overlapping automatic requests. Network errors retain the last retrieved ticket and display a retry message; server verification remains authoritative. Verification requires a live backend connection. Offline ticket caching is not implemented.
 
 ## Verification demo
 
@@ -116,6 +116,8 @@ Created source files:
 - `frontend/src/components/ticketing/TicketCard.tsx`
 - `frontend/src/components/ticketing/TicketQRCode.tsx`
 - `frontend/src/components/ticketing/TicketStatusBadge.tsx`
+- `frontend/src/components/ticketing/JourneyDateTimePicker.tsx`
+- `frontend/src/hooks/useTicketAutoRefresh.ts`
 - `frontend/src/screens/MyTicketsScreen.tsx`
 - `frontend/src/screens/TicketPurchaseScreen.tsx`
 - `frontend/src/screens/TicketDetailsScreen.tsx`
@@ -125,6 +127,7 @@ Created source files:
 - `frontend/src/__tests__/TicketPurchase.test.tsx`
 - `frontend/src/__tests__/TicketQR.test.tsx`
 - `frontend/src/__tests__/TicketVerification.test.tsx`
+- `frontend/src/__tests__/TicketImprovements.test.tsx`
 
 Modified existing files:
 
@@ -142,16 +145,20 @@ Modified existing files:
 
 Generated exports, temporary visual-check helpers, and screenshots are kept in the already ignored `frontend/dist` and `frontend/.expo` directories, not in source control. No other branch was changed, and no commit was created.
 
+The calendar/quick-QR/automatic-refresh follow-up modifies only `TicketPurchaseScreen.tsx` (picker integration), `TicketCard.tsx` (separate detail and QR actions), `MyTicketsScreen.tsx` (quiet refresh and presentation navigation), `TicketDetailsScreen.tsx` (quiet refresh and QR closure), `TicketPurchase.test.tsx` (retain invalid-date validation coverage), and this guide. It adds `JourneyDateTimePicker.tsx`, `useTicketAutoRefresh.ts`, and `TicketImprovements.test.tsx`. It adds no dependencies or backend/navigation changes.
+
 ## Completed validation
 
 - TypeScript: passed.
-- Frontend Jest: 67 tests passed across seven suites, including all 53 pre-existing Officer tests.
+- Frontend Jest: 73 tests passed across eight suites, including all 53 pre-existing Officer tests. The six additional tests cover calendar selection/cancellation and time boundaries, refresh lifecycle/concurrency, quick QR navigation, automatic history updates, and QR closure after redemption.
 - Backend: 13 ticket unit/integration tests passed using an isolated temporary database.
 - Expo SDK compatibility: dependencies up to date; no existing locked package versions changed.
 - Android, iOS, and web exports: passed.
-- Browser UI flow with isolated API fixtures: purchase, review, generated QR, fullscreen presentation, verification preview, redemption, and ticket history passed at 390px and 320px; no horizontal page overflow or browser runtime exceptions.
+- Browser UI flow with isolated API fixtures: purchase, review, generated QR, fullscreen presentation, verification preview, redemption, and ticket history passed at 390px and 320px; no horizontal page overflow or browser runtime exceptions. The follow-up also checked calendar/time sheets at both widths, direct Show QR navigation, and QR closure after a server status change within the polling interval.
 - Existing browser navigation: Home → Routes, Tickets tab, Officer tab → Verify Ticket, and Profile → Notifications passed.
 - Camera config introspection: camera usage description present, no microphone usage description, no Android audio recording permission.
 - Git whitespace checks and backend entry/import script syntax checks: passed.
 
 Screenshots are in `frontend/dist/tickets-390.png`, `purchase-390.png`, `review-390.png`, `ticket-390.png`, `qr-390.png`, `ticket-320.png`, `verification-320.png`, and `history-320.png`. They use test fixture data. Physical camera scanning, native gestures, and device keyboard/safe-area checks remain manual validation items.
+
+Follow-up screenshots in the same ignored directory: `calendar-390.png`, `time-picker-390.png`, `calendar-320.png`, `time-picker-320.png`, `quick-qr-320.png`, and `auto-used-320.png`.

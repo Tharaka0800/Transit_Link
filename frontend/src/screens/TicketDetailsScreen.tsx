@@ -28,11 +28,13 @@ import {
   formatTicketTime,
 } from '../utils/ticketUtils';
 import { colors } from '../theme';
+import useTicketAutoRefresh from '../hooks/useTicketAutoRefresh';
 
 export default function TicketDetailsScreen() {
   const params = useLocalSearchParams<{
     id?: string | string[];
     purchased?: string;
+    present?: string;
   }>();
   const id = Array.isArray(params.id) ? params.id[0] : params.id;
   const [ticket, setTicket] = useState<Ticket | null>(null);
@@ -47,33 +49,47 @@ export default function TicketDetailsScreen() {
     const timer = setInterval(() => tick((n) => n + 1), 10000);
     return () => clearInterval(timer);
   }, []);
-  const load = useCallback(async () => {
-    const generation = ++request.current;
-    setLoading(true);
-    setError(null);
-    try {
-      if (!id) {
-        setError('Ticket not found.');
-        return;
+  const load = useCallback(
+    async (showLoading = true) => {
+      const generation = ++request.current;
+      if (showLoading) {
+        setLoading(true);
+        setError(null);
       }
-      const data = await loadTicket(id);
-      if (request.current === generation) {
-        setTicket(data);
-        setSignedOut(false);
-      }
-    } catch (failure) {
-      if (request.current === generation) {
-        setError(ticketError(failure));
-        if (isSessionError(failure)) {
-          setSignedOut(true);
-          setTicket(null);
-          setFullscreen(false);
+      try {
+        if (!id) {
+          setError('Ticket not found.');
+          return;
         }
+        const data = await loadTicket(id);
+        if (request.current === generation) {
+          setTicket(data);
+          setSignedOut(false);
+          setError(null);
+        }
+      } catch (failure) {
+        if (request.current === generation) {
+          setError(ticketError(failure));
+          if (isSessionError(failure)) {
+            setSignedOut(true);
+            setTicket(null);
+            setFullscreen(false);
+          }
+        }
+      } finally {
+        if (request.current === generation) setLoading(false);
       }
-    } finally {
-      if (request.current === generation) setLoading(false);
-    }
-  }, [id]);
+    },
+    [id]
+  );
+  useTicketAutoRefresh(useCallback(() => load(false), [load]));
+  useEffect(() => {
+    if (params.present === '1') setFullscreen(true);
+  }, [id, params.present]);
+  useEffect(() => {
+    if (ticket && !['Active', 'Upcoming'].includes(currentTicketStatus(ticket)))
+      setFullscreen(false);
+  }, [ticket]);
   useFocusEffect(
     useCallback(() => {
       setTicket(null);
