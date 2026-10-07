@@ -1,42 +1,24 @@
 {
   "name": "transitlink-backend",
   "version": "1.0.0",
-  "description": "TransitLink REST API and real-time transport officer incidents",
-  "main": "dist/backend/src/index.js",
+  "description": "TransitLink REST API - Login/Profile & Supporting Screens",
+  "main": "server.js",
   "type": "module",
-  "engines": {
-    "node": ">=22"
-  },
   "scripts": {
-    "start": "node dist/backend/src/index.js",
-    "dev": "tsx watch src/index.ts",
-    "build": "tsc",
-    "typecheck": "tsc --noEmit",
-    "test": "tsx --test src/__tests__/*.test.ts",
+    "start": "node server.js",
+    "dev": "node --watch server.js",
     "seed": "node seed.js"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.117.2",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.21.0",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.7.0",
-    "morgan": "^1.10.0",
-    "socket.io": "^4.8.4"
+    "morgan": "^1.10.0"
   },
   "devDependencies": {
-    "@types/cors": "^2.8.19",
-    "@types/express": "^4.17.25",
-    "@types/jsonwebtoken": "^9.0.10",
-    "@types/morgan": "^1.9.10",
-    "@types/node": "^22.19.15",
-    "@types/supertest": "^6.0.3",
-    "mongodb-memory-server": "^11.3.0",
-    "socket.io-client": "^4.8.4",
-    "supertest": "^7.3.1",
-    "tsx": "^4.23.15",
-    "typescript": "^5.9.3"
+    "mongodb-memory-server": "^11.3.0"
   }
 }

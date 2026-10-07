@@ -1,9 +1,9 @@
 import React from 'react';
-import { Text, TextInput, TouchableOpacity } from 'react-native';
+import { ActivityIndicator, Text, TextInput, TouchableOpacity } from 'react-native';
 import { act, create, ReactTestRenderer } from 'react-test-renderer';
 import { router } from 'expo-router';
 import AddAlert from '../app/officer-dashboard/add-alert';
-import { addIncident, getIncidents, IncidentAlert, updateIncident } from '../utils/OfficerApiService';
+import { addIncident, getIncidents, IncidentAlert, updateIncident } from '../utils/OfficerStorage';
 
 let mockParams: { id?: string | string[] } = {};
 
@@ -16,7 +16,7 @@ jest.mock('expo-router', () => ({
   useLocalSearchParams: () => mockParams,
 }));
 
-jest.mock('../utils/OfficerApiService', () => ({
+jest.mock('../utils/OfficerStorage', () => ({
   addIncident: jest.fn(),
   getIncidents: jest.fn(),
   updateIncident: jest.fn(),
@@ -132,14 +132,14 @@ test('creates trimmed input with the chosen status and goes back after saving', 
 });
 
 test('preserves entered values and shows save failure without navigating', async () => {
-  mockAdd.mockRejectedValueOnce(new Error('Server is unavailable.'));
+  mockAdd.mockRejectedValueOnce(new Error('Unable to save incident alerts on this device.'));
   await renderForm();
   enter('Bus ID', '154');
   enter('Route', 'CMB → KDY');
   enter('Delay Time', '15m');
   await press('Create Alert');
 
-  expect(textContent()).toContain('Server is unavailable.');
+  expect(textContent()).toContain('Unable to save incident alerts on this device.');
   expect(field('Bus ID').props.value).toBe('154');
   expect(field('Route').props.value).toBe('CMB → KDY');
   expect(field('Delay Time').props.value).toBe('15m');
@@ -170,6 +170,19 @@ test('hydrates an existing incident and updates its ID with all current field va
   expect(router.back).toHaveBeenCalledTimes(1);
 });
 
+test('keeps editing unavailable until the local incident has finished loading', async () => {
+  const load = deferred<IncidentAlert[]>();
+  mockParams = { id: incidentA.id };
+  mockGet.mockReturnValueOnce(load.promise);
+  await renderForm();
+  expect(screen!.root.findAllByType(ActivityIndicator)).toHaveLength(1);
+  expect(screen!.root.findAllByType(TextInput)).toHaveLength(0);
+  expect(mockUpdate).not.toHaveBeenCalled();
+  await act(async () => { load.resolve([incidentA]); });
+  expect(field('Bus ID').props.value).toBe(incidentA.busId);
+  expect(button('Save Changes').props.disabled).toBe(false);
+});
+
 test('shows an unavailable state when an incident was deleted before editing', async () => {
   mockParams = { id: 'deleted-incident' };
   await renderForm();
@@ -179,11 +192,11 @@ test('shows an unavailable state when an incident was deleted before editing', a
   expect(mockUpdate).not.toHaveBeenCalled();
 });
 
-test('shows a failed API load and repopulates the form after retry', async () => {
+test('shows a failed local storage load and repopulates the form after retry', async () => {
   mockParams = { id: incidentA.id };
-  mockGet.mockRejectedValueOnce(new Error('Unable to reach the server.'));
+  mockGet.mockRejectedValueOnce(new Error('Unable to read incident alerts on this device.'));
   await renderForm();
-  expect(textContent()).toContain('Unable to reach the server.');
+  expect(textContent()).toContain('Unable to read incident alerts on this device.');
   expect(screen!.root.findAllByType(TextInput)).toHaveLength(0);
   await press('Retry');
   expect(field('Bus ID').props.value).toBe(incidentA.busId);
@@ -191,7 +204,7 @@ test('shows a failed API load and repopulates the form after retry', async () =>
   expect(mockGet).toHaveBeenCalledTimes(2);
 });
 
-test('ignores an older API load after the edit target changes', async () => {
+test('ignores an older local storage load after the edit target changes', async () => {
   const previousLoad = deferred<IncidentAlert[]>();
   mockParams = { id: incidentA.id };
   mockGet.mockReturnValueOnce(previousLoad.promise);
@@ -260,4 +273,19 @@ test('returns directly opened alerts to the dashboard when there is no back hist
 
   expect(router.replace).toHaveBeenCalledWith('/(tabs)/officer-dashboard');
   expect(router.back).not.toHaveBeenCalled();
+});
+
+test('does not navigate when a save completes after the form has unmounted', async () => {
+  const save = deferred<IncidentAlert>();
+  mockAdd.mockReturnValueOnce(save.promise);
+  await renderForm();
+  enter('Bus ID', '154');
+  enter('Route', 'CMB to KDY');
+  enter('Delay Time', '15m');
+  await press('Create Alert');
+  act(() => { screen!.unmount(); });
+  screen = undefined;
+  await act(async () => { save.resolve(incidentA); });
+  expect(router.back).not.toHaveBeenCalled();
+  expect(router.replace).not.toHaveBeenCalled();
 });
