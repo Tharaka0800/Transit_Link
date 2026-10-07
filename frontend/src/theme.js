@@ -14,6 +14,7 @@ export const colors = {
   gray50: '#F9FAFB',
   red: '#EF4444',
   redSoft: '#FEE2E2',
+  orange: '#F97316',
   green: '#16A34A',
   greenSoft: '#DCFCE7',
   border: '#F3F4F6',

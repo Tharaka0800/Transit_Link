@@ -218,9 +218,18 @@ const Login = () => {
             </Button>
 
             {mode === 'login' ? (
-              <TouchableOpacity onPress={() => setMode('forgot')}>
-                <Text style={styles.link}>Forgot Password?</Text>
-              </TouchableOpacity>
+              <>
+                <Button
+                  variant="secondary"
+                  style={styles.officerButton}
+                  onPress={() => router.replace('/(tabs)/officer-dashboard')}
+                >
+                  Open Officer Dashboard
+                </Button>
+                <TouchableOpacity onPress={() => setMode('forgot')}>
+                  <Text style={styles.link}>Forgot Password?</Text>
+                </TouchableOpacity>
+              </>
             ) : null}
 
             <View style={styles.switchRow}>
@@ -316,6 +325,9 @@ const styles = StyleSheet.create({
     textDecorationLine: 'underline',
     fontWeight: '500',
     fontSize: 14,
+  },
+  officerButton: {
+    marginTop: 12,
   },
   switchRow: {
     flexDirection: 'row',
