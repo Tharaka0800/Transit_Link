@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import Navbar from '../components/Navbar';
 import Button from '../components/Button';
 import { upcomingTickets, pastTickets } from '../data/mockData';
@@ -74,7 +75,7 @@ const TicketCard = ({ ticket, onView }) => {
   );
 };
 
-const TicketsScreen = ({ navigation }) => {
+const TicketsScreen = () => {
   const [tab, setTab] = useState('upcoming');
   const list = tab === 'upcoming' ? upcomingTickets : pastTickets;
 
@@ -91,7 +92,7 @@ const TicketsScreen = ({ navigation }) => {
       <Navbar
         title="My Tickets"
         showBack
-        onBack={() => navigation.navigate('Home')}
+        onBack={() => router.navigate('/(tabs)/home')}
       />
 
       <View style={styles.tabs}>

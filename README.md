@@ -1,6 +1,6 @@
-# TransitLink — Login / Profile & Supporting Screens
+# TransitLink
 
-Expo (React Native) + Node.js/Express module for **TransitLink**, covering authentication, profile management, notifications, and help & support.
+Expo (React Native) + Node.js/Express module for **TransitLink**, covering authentication, profile management, notifications, help & support, and the Transport Officer Dashboard.
 
 ## Folder Structure
 
@@ -10,10 +10,10 @@ Expo (React Native) + Node.js/Express module for **TransitLink**, covering authe
 │   ├── src/
 │   │   ├── components/                # Navbar, Button, FormInput, BottomNav
 │   │   ├── screens/                   # Home, Login, Profile, Notifications, HelpSupport
-│   │   ├── navigation/                # AppNavigator.js
+│   │   ├── app/                       # Expo Router stacks, tabs, and officer screens
+│   │   ├── utils/                     # Local incident CRUD and tests
 │   │   ├── services/                  # api.js (Axios + AsyncStorage)
 │   │   └── theme.js
-│   ├── App.js
 │   ├── app.json
 │   └── package.json
 ├── backend/                           # Node.js REST API
@@ -90,11 +90,15 @@ Android emulator uses `http://10.0.2.2:5000/api` automatically.
 | My Tickets (Upcoming / Past) | Done |
 | Favourite Routes | Done (Routes tab) |
 | Fare Information (Calculator / General) | Done |
+| Transport Officer Dashboard / Add & Edit Alert | Done (Officer tab, local CRUD) |
 
 ## Design
 
 - Brand: TransitLink
 - Primary: Blue `#2563EB`
 - Styling: React Native `StyleSheet.create`
-- Navigation: `@react-navigation/native` + bottom tabs (Home, Routes, Tickets, Profile)
+- Navigation: Expo Router + bottom tabs (Home, Routes, Tickets, Profile, Officer)
 - Session: AsyncStorage for JWT
+- Officer incidents: AsyncStorage key `@transit_incidents`; sample alerts seed once, and Resolve deletes an alert
+
+See [frontend setup and validation](frontend/README.md) for the officer CRUD demonstration and check commands. The project remains on Expo SDK 51.

@@ -12,7 +12,7 @@ const tabs = [
 
 /**
  * Visual bottom nav used inside stack screens that sit above the tab navigator.
- * For primary tabs, prefer React Navigation bottom-tabs in AppNavigator.
+ * For primary tabs, use the Expo Router Tabs layout.
  */
 const BottomNav = ({ active = 'Home', onNavigate }) => {
   return (

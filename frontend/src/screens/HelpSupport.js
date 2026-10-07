@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import Navbar from '../components/Navbar';
 import FormInput from '../components/FormInput';
 import Button from '../components/Button';
@@ -64,7 +65,7 @@ const faqContent = [
   },
 ];
 
-const HelpSupport = ({ navigation }) => {
+const HelpSupport = () => {
   const [query, setQuery] = useState('');
   const [activePanel, setActivePanel] = useState(null);
   const [issueForm, setIssueForm] = useState({ title: '', message: '' });
@@ -83,7 +84,7 @@ const HelpSupport = ({ navigation }) => {
   const handleReport = async () => {
     const token = await getToken();
     if (!token) {
-      navigation.replace('Login');
+      router.replace('/login');
       return;
     }
     if (!issueForm.title.trim() || !issueForm.message.trim()) {
@@ -189,7 +190,12 @@ const HelpSupport = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <Navbar title="Help & Support" onBack={() => navigation.goBack()} />
+      <Navbar
+        title="Help & Support"
+        onBack={() =>
+          router.canGoBack() ? router.back() : router.replace('/(tabs)/home')
+        }
+      />
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={styles.searchBox}>
           <Ionicons name="search" size={20} color={colors.gray400} />

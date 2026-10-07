@@ -16,7 +16,15 @@ const Navbar = ({
     <View style={styles.bar}>
       <View style={styles.side}>
         {showBack ? (
-          <TouchableOpacity onPress={onBack} hitSlop={12} style={styles.iconBtn}>
+          <TouchableOpacity
+            onPress={onBack}
+            hitSlop={12}
+            style={styles.iconBtn}
+            disabled={!onBack}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+            accessibilityState={{ disabled: !onBack }}
+          >
             <Ionicons name="arrow-back" size={24} color={colors.gray900} />
           </TouchableOpacity>
         ) : null}

@@ -8,12 +8,12 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect } from '@react-navigation/native';
+import { router, useFocusEffect } from 'expo-router';
 import Button from '../components/Button';
 import { getStoredUser, getToken } from '../services/api';
 import { colors } from '../theme';
 
-const Home = ({ navigation }) => {
+const Home = () => {
   const [user, setUser] = useState(null);
   const [loggedIn, setLoggedIn] = useState(false);
 
@@ -45,7 +45,7 @@ const Home = ({ navigation }) => {
             <TouchableOpacity
               style={styles.bellBtn}
               onPress={() =>
-                navigation.navigate(loggedIn ? 'Notifications' : 'Login')
+                router.navigate(loggedIn ? '/notifications' : '/login')
               }
             >
               <Ionicons name="notifications-outline" size={22} color={colors.white} />
@@ -65,7 +65,7 @@ const Home = ({ navigation }) => {
         <View style={styles.cards}>
           <TouchableOpacity
             style={styles.card}
-            onPress={() => navigation.navigate('Routes')}
+            onPress={() => router.navigate('/(tabs)/routes')}
           >
             <View style={styles.cardIcon}>
               <Ionicons name="location" size={22} color={colors.brand} />
@@ -79,7 +79,7 @@ const Home = ({ navigation }) => {
 
           <TouchableOpacity
             style={styles.card}
-            onPress={() => navigation.navigate('Tickets')}
+            onPress={() => router.navigate('/(tabs)/tickets')}
           >
             <View style={styles.cardIcon}>
               <Ionicons name="ticket" size={22} color={colors.brand} />
@@ -93,7 +93,7 @@ const Home = ({ navigation }) => {
 
           <TouchableOpacity
             style={styles.card}
-            onPress={() => navigation.navigate('FareInformation')}
+            onPress={() => router.navigate('/fare-information')}
           >
             <View style={styles.cardIcon}>
               <Ionicons name="calculator" size={22} color={colors.brand} />
@@ -114,20 +114,20 @@ const Home = ({ navigation }) => {
               <View style={styles.quickActions}>
                 <Button
                   style={styles.halfBtn}
-                  onPress={() => navigation.navigate('Profile')}
+                  onPress={() => router.navigate('/(tabs)/profile')}
                 >
                   Profile
                 </Button>
                 <Button
                   variant="secondary"
                   style={styles.halfBtn}
-                  onPress={() => navigation.navigate('HelpSupport')}
+                  onPress={() => router.navigate('/help-support')}
                 >
                   Help
                 </Button>
               </View>
             ) : (
-              <Button onPress={() => navigation.navigate('Login')}>
+              <Button onPress={() => router.navigate('/login')}>
                 Login / Register
               </Button>
             )}
