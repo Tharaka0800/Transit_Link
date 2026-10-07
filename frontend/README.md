@@ -16,16 +16,20 @@ The entry point is `expo-router/entry`. File routes live in `src/app`, and exist
 
 ## Officer dashboard
 
-Open the **Officer** tab after login. It uses the existing theme, Navbar, FormInput, and Button components.
+On a fresh install, choose **Open Officer Dashboard** beneath Login to demonstrate the Officer workload offline. This does not create a login session. Signed-in users can also open the fifth **Officer** tab. The dashboard and form use the existing theme, Navbar, FormInput, and Button components, and the form opens above the tabs.
 
 - **Read:** the dashboard lists persisted incident alerts, newest first.
 - **Create:** choose **+ New Alert**, enter Bus ID, Route, and Delay Time, select a status, and choose **Create Alert**.
 - **Update:** choose **Edit** on an incident, change its fields/status, and choose **Save Changes**.
 - **Delete:** choose **Resolve** to remove an incident.
 
-Incidents are stored in Supabase through the authenticated Express API. Start the configured backend before using the dashboard. Create, edit, and resolve operations broadcast a Socket.IO event, so connected dashboards refresh automatically; reconnecting also fetches changes missed while offline. Existing local sample alerts are not uploaded automatically, and an empty database stays empty.
+Incidents are stored exclusively on the device with `@react-native-async-storage/async-storage`, under `@transit_incidents`. No backend, login token, internet connection, or API configuration is required for Officer CRUD. The dashboard loads on mount and refreshes when it regains focus after a save or tab change.
 
-`OfficerApiService.ts` uses the existing Axios client and login token. Its incident types come from `shared/incident.ts`, which is also used by the backend. AsyncStorage continues to hold the login session only.
+`src/utils/OfficerStorage.ts` defines `IncidentAlert` and exports `getIncidents`, `addIncident`, `updateIncident`, and `deleteIncident`. Reads and mutations are serialized to avoid lost changes. New alerts receive a unique string ID and numeric creation timestamp; edits preserve both. Updating an unknown ID reports an error; deleting an unknown ID is harmless.
+
+Two sample alerts initialize only when the key is missing, including Bus 154, CMB → KDY, 15m, URGENT. An intentionally stored `[]` stays empty after reload/restart. Corrupt stored data and storage failures produce useful errors without replacing existing data. Dashboard retry and form error states let the user retry after the problem is corrected.
+
+Status badges use the existing red and green tokens and the Routes screen's orange token for WARNING. Status selection remains textual and accessible.
 
 The metric cards use the requested prototype values. Delay Hotspots and Rerouting are informational cards.
 
@@ -38,17 +42,19 @@ npx expo install --check
 npx expo export --platform all --output-dir dist
 ```
 
-The API tests cover requests, response validation, error messages, and socket authentication. Dashboard tests cover real-time refresh, reconnection, listener cleanup, and stale responses. Form tests cover validation, create/edit submissions, retained inputs after failures, duplicate submission protection, and stale saves after route changes. Native keyboard, safe-area, and gesture checks still require an Android/iOS device or emulator.
+Storage tests cover one-time seeding, sorting, unique creation, partial updates, immutable metadata, deletion, empty-list persistence after module restart, overlapping mutations, malformed data, storage failures, and recovery. Dashboard/form tests cover local loading, focus refresh, validation, missing IDs, duplicate operations, retained inputs after failures, and stale async results. Native keyboard, safe-area, and gesture checks still require an Android/iOS device or emulator.
 
-## API base URL
+For a manual offline check, stop the backend, open the login shortcut, create an alert, edit it, and resolve it. Reload the app to check persistence. Resolve every alert and reload again to verify the dashboard stays empty. Check the dashboard and form at 320px and 390px widths, and verify that saving returns to the dashboard.
 
-The REST client and Socket.IO share the origin in `src/services/backendConfig.ts`. Set `EXPO_PUBLIC_API_URL` in `frontend/.env` to your Express server origin **without `/api`**, then restart Expo. See [.env.example](.env.example).
+## Account and notification API base URL
+
+Teammates' account and notification screens continue to use the existing Axios REST client and JWT session. Their origin is configured in `src/services/backendConfig.ts`. Set `EXPO_PUBLIC_API_URL` in `frontend/.env` to your Express server origin **without `/api`**, then restart Expo. See [.env.example](.env.example). This setting does not affect the local Officer feature.
 
 - **Android emulator default:** `http://10.0.2.2:5000`
 - **iOS simulator/web default:** `http://localhost:5000`
 - **Physical device:** your computer's reachable LAN address, for example `http://192.168.1.20:5000`
 
-Ensure the device can reach the backend port. If web runs at a custom origin and the backend sets `CORS_ORIGINS`, include that web origin there. Never put a Supabase server key in an `EXPO_PUBLIC_*` variable.
+Ensure the device can reach the backend port when using account or notification features.
 
 ## Auth storage
 

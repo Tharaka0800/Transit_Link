@@ -120,7 +120,7 @@ const RoutesScreen = () => {
                 <Ionicons
                   name={route.favorite ? 'star-outline' : 'notifications-off-outline'}
                   size={22}
-                  color={route.favorite ? '#F97316' : colors.gray400}
+                  color={route.favorite ? colors.orange : colors.gray400}
                 />
               </TouchableOpacity>
               <Ionicons name="chevron-forward" size={20} color={colors.gray300} />
