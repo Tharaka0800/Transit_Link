@@ -22,6 +22,8 @@ const FormInput = ({
   autoCapitalize = 'none',
   error,
   style,
+  editable = true,
+  accessibilityLabel,
 }) => {
   return (
     <View style={[styles.wrap, style]}>
@@ -44,6 +46,8 @@ const FormInput = ({
           secureTextEntry={secureTextEntry}
           keyboardType={keyboardType}
           autoCapitalize={autoCapitalize}
+          editable={editable}
+          accessibilityLabel={accessibilityLabel || label || placeholder}
         />
         {rightIcon ? (
           <TouchableOpacity onPress={onRightPress} hitSlop={10}>

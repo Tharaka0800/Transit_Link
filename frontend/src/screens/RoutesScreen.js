@@ -9,11 +9,12 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import Navbar from '../components/Navbar';
 import { favouriteRoutes as initialRoutes } from '../data/mockData';
 import { colors } from '../theme';
 
-const RoutesScreen = ({ navigation }) => {
+const RoutesScreen = () => {
   const [routes, setRoutes] = useState(initialRoutes);
 
   const toggleFavorite = (id) => {
@@ -32,7 +33,7 @@ const RoutesScreen = ({ navigation }) => {
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Fare Information',
-          onPress: () => navigation.navigate('FareInformation'),
+          onPress: () => router.navigate('/fare-information'),
         },
         {
           text: 'Add Sample',
@@ -60,7 +61,7 @@ const RoutesScreen = ({ navigation }) => {
       <Navbar
         title="Favourite Routes"
         showBack
-        onBack={() => navigation.navigate('Home')}
+        onBack={() => router.navigate('/(tabs)/home')}
         rightIcon="add"
         rightIconColor={colors.brand}
         onRightPress={handleAdd}
@@ -68,7 +69,7 @@ const RoutesScreen = ({ navigation }) => {
 
       <TouchableOpacity
         style={styles.fareLink}
-        onPress={() => navigation.navigate('FareInformation')}
+        onPress={() => router.navigate('/fare-information')}
         activeOpacity={0.85}
       >
         <View style={styles.fareIcon}>

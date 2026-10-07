@@ -15,6 +15,10 @@ const Button = ({
   disabled = false,
   style,
   textStyle,
+  accessibilityLabel,
+  accessibilityHint,
+  accessibilityRole = 'button',
+  accessibilityState,
 }) => {
   const isPrimary = variant === 'primary';
   const isDanger = variant === 'danger';
@@ -25,6 +29,16 @@ const Button = ({
       activeOpacity={0.85}
       onPress={onPress}
       disabled={disabled || loading}
+      accessibilityRole={accessibilityRole}
+      accessibilityLabel={
+        accessibilityLabel || (typeof children === 'string' ? children : undefined)
+      }
+      accessibilityHint={accessibilityHint}
+      accessibilityState={{
+        ...accessibilityState,
+        disabled: disabled || loading,
+        busy: loading,
+      }}
       style={[
         styles.base,
         isPrimary && styles.primary,

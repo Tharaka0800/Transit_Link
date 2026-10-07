@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect } from '@react-navigation/native';
+import { router, useFocusEffect } from 'expo-router';
 import Navbar from '../components/Navbar';
 import FormInput from '../components/FormInput';
 import Button from '../components/Button';
@@ -40,7 +40,12 @@ const menuItems = [
   { key: 'help', label: 'Help & Support', icon: 'help-circle-outline' },
 ];
 
-const Profile = ({ navigation }) => {
+const tabPaths = {
+  Tickets: '/(tabs)/tickets',
+  Routes: '/(tabs)/routes',
+};
+
+const Profile = () => {
   const [user, setUser] = useState(null);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -55,7 +60,7 @@ const Profile = ({ navigation }) => {
   const load = useCallback(async () => {
     const token = await getToken();
     if (!token) {
-      navigation.replace('Login');
+      router.replace('/login');
       return;
     }
     try {
@@ -76,7 +81,7 @@ const Profile = ({ navigation }) => {
     } finally {
       setLoading(false);
     }
-  }, [navigation]);
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
@@ -95,15 +100,15 @@ const Profile = ({ navigation }) => {
       return;
     }
     if (item.key === 'notifications') {
-      navigation.navigate('Notifications');
+      router.navigate('/notifications');
       return;
     }
     if (item.key === 'help') {
-      navigation.navigate('HelpSupport');
+      router.navigate('/help-support');
       return;
     }
     if (item.tab) {
-      navigation.navigate(item.tab);
+      router.navigate(tabPaths[item.tab]);
     }
   };
 
@@ -130,7 +135,7 @@ const Profile = ({ navigation }) => {
         style: 'destructive',
         onPress: async () => {
           await clearAuth();
-          navigation.replace('Login');
+          router.replace('/login');
         },
       },
     ]);
@@ -149,7 +154,7 @@ const Profile = ({ navigation }) => {
             try {
               await deleteUserProfile();
               await clearAuth();
-              navigation.replace('Login');
+              router.replace('/login');
             } catch (err) {
               Alert.alert('Error', err.response?.data?.message || err.message);
             }
@@ -233,7 +238,7 @@ const Profile = ({ navigation }) => {
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.backBtn}
-            onPress={() => navigation.navigate('Home')}
+            onPress={() => router.navigate('/(tabs)/home')}
           >
             <Ionicons name="arrow-back" size={24} color={colors.gray900} />
           </TouchableOpacity>

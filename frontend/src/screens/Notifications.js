@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect } from '@react-navigation/native';
+import { router, useFocusEffect } from 'expo-router';
 import Navbar from '../components/Navbar';
 import Button from '../components/Button';
 import {
@@ -57,7 +57,7 @@ const formatTime = (dateStr) => {
   return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
 };
 
-const Notifications = ({ navigation }) => {
+const Notifications = () => {
   const [activeFilter, setActiveFilter] = useState('all');
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -87,13 +87,13 @@ const Notifications = ({ navigation }) => {
       const init = async () => {
         const token = await getToken();
         if (!token) {
-          navigation.replace('Login');
+          router.replace('/login');
           return;
         }
         loadNotifications('all');
       };
       init();
-    }, [loadNotifications, navigation])
+    }, [loadNotifications])
   );
 
   const handleOpen = async (item) => {
@@ -169,7 +169,7 @@ const Notifications = ({ navigation }) => {
             {item.type === 'delay' ? (
               <Button
                 style={styles.actionBtn}
-                onPress={() => navigation.navigate('MainTabs', { screen: 'Routes' })}
+                onPress={() => router.navigate('/(tabs)/routes')}
               >
                 Find Alternative Route
               </Button>
@@ -177,7 +177,7 @@ const Notifications = ({ navigation }) => {
             {item.type === 'ticket' ? (
               <Button
                 style={styles.actionBtn}
-                onPress={() => navigation.navigate('MainTabs', { screen: 'Tickets' })}
+                onPress={() => router.navigate('/(tabs)/tickets')}
               >
                 View Ticket
               </Button>
@@ -199,7 +199,9 @@ const Notifications = ({ navigation }) => {
     <SafeAreaView style={styles.safe} edges={['top']}>
       <Navbar
         title="Notifications"
-        onBack={() => navigation.goBack()}
+        onBack={() =>
+          router.canGoBack() ? router.back() : router.replace('/(tabs)/home')
+        }
         rightIcon="notifications-outline"
       />
 

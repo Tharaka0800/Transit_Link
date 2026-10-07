@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import FormInput from '../components/FormInput';
 import Button from '../components/Button';
 import { loginUser, registerUser, saveAuth } from '../services/api';
@@ -23,7 +24,7 @@ const HERO = require('../../assets/login-hero.png');
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const HERO_HEIGHT = Math.max(220, Math.round(SCREEN_HEIGHT * 0.32));
 
-const Login = ({ navigation }) => {
+const Login = () => {
   const [mode, setMode] = useState('login'); // login | register | forgot
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -48,7 +49,7 @@ const Login = ({ navigation }) => {
         password: form.password,
       });
       await saveAuth(data);
-      navigation.replace('MainTabs');
+      router.replace('/(tabs)/home');
     } catch (err) {
       Alert.alert('Login failed', err.response?.data?.message || err.message);
     } finally {
@@ -70,7 +71,7 @@ const Login = ({ navigation }) => {
         password: form.password,
       });
       await saveAuth(data);
-      navigation.replace('MainTabs');
+      router.replace('/(tabs)/home');
     } catch (err) {
       Alert.alert(
         'Registration failed',

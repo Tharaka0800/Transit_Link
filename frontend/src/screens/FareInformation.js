@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import Navbar from '../components/Navbar';
 import FormInput from '../components/FormInput';
 import Button from '../components/Button';
@@ -24,7 +25,7 @@ const fareTable = {
 
 const normalize = (value) => value.trim().toLowerCase();
 
-const FareInformation = ({ navigation }) => {
+const FareInformation = () => {
   const [tab, setTab] = useState('calculator');
   const [from, setFrom] = useState('Colombo Fort');
   const [to, setTo] = useState('Kandy');
@@ -66,7 +67,9 @@ const FareInformation = ({ navigation }) => {
       <Navbar
         title="Fare Information"
         showBack
-        onBack={() => navigation.goBack()}
+        onBack={() =>
+          router.canGoBack() ? router.back() : router.replace('/(tabs)/home')
+        }
       />
 
       <View style={styles.tabs}>
