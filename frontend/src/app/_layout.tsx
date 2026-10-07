@@ -28,6 +28,9 @@ export default function RootLayout() {
         <Stack.Screen name="help-support" />
         <Stack.Screen name="fare-information" />
         <Stack.Screen name="officer-dashboard/add-alert" />
+        <Stack.Screen name="officer-dashboard/verify-ticket" />
+        <Stack.Screen name="ticketing/purchase" />
+        <Stack.Screen name="ticketing/[id]" />
       </Stack>
     </>
   );

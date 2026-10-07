@@ -1,0 +1,107 @@
+[
+  {
+    "code": "DEMO-B-KDY",
+    "mode": "Bus",
+    "from": "Colombo Fort",
+    "to": "Kandy",
+    "durationMinutes": 180,
+    "validityMinutes": 300,
+    "ticketTypes": [
+      {
+        "code": "standard",
+        "label": "Standard · Single journey",
+        "fareMinor": 32000
+      }
+    ]
+  },
+  {
+    "code": "DEMO-T-KDY",
+    "mode": "Train",
+    "from": "Colombo Fort",
+    "to": "Kandy",
+    "durationMinutes": 150,
+    "validityMinutes": 300,
+    "ticketTypes": [
+      {
+        "code": "standard",
+        "label": "Standard · Single journey",
+        "fareMinor": 45000
+      }
+    ]
+  },
+  {
+    "code": "DEMO-B-GLE",
+    "mode": "Bus",
+    "from": "Colombo Fort",
+    "to": "Galle",
+    "durationMinutes": 135,
+    "validityMinutes": 240,
+    "ticketTypes": [
+      {
+        "code": "standard",
+        "label": "Standard · Single journey",
+        "fareMinor": 28000
+      }
+    ]
+  },
+  {
+    "code": "DEMO-T-GLE",
+    "mode": "Train",
+    "from": "Colombo Fort",
+    "to": "Galle",
+    "durationMinutes": 150,
+    "validityMinutes": 240,
+    "ticketTypes": [
+      {
+        "code": "standard",
+        "label": "Standard · Single journey",
+        "fareMinor": 40000
+      }
+    ]
+  },
+  {
+    "code": "DEMO-B-MHG",
+    "mode": "Bus",
+    "from": "Maharagama",
+    "to": "Pettah",
+    "durationMinutes": 45,
+    "validityMinutes": 120,
+    "ticketTypes": [
+      {
+        "code": "standard",
+        "label": "Standard · Single journey",
+        "fareMinor": 6000
+      }
+    ]
+  },
+  {
+    "code": "DEMO-B-NGB",
+    "mode": "Bus",
+    "from": "Negombo",
+    "to": "Colombo Fort",
+    "durationMinutes": 90,
+    "validityMinutes": 180,
+    "ticketTypes": [
+      {
+        "code": "standard",
+        "label": "Standard · Single journey",
+        "fareMinor": 15000
+      }
+    ]
+  },
+  {
+    "code": "DEMO-T-NGB",
+    "mode": "Train",
+    "from": "Negombo",
+    "to": "Colombo Fort",
+    "durationMinutes": 65,
+    "validityMinutes": 180,
+    "ticketTypes": [
+      {
+        "code": "standard",
+        "label": "Standard · Single journey",
+        "fareMinor": 22000
+      }
+    ]
+  }
+]
