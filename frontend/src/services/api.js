@@ -1,21 +1,12 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Platform } from 'react-native';
-
-// Android emulator maps host machine localhost via 10.0.2.2
-// iOS simulator can use localhost; physical devices need your LAN IP
-const getBaseURL = () => {
-  if (Platform.OS === 'android') {
-    return 'http://10.0.2.2:5000/api';
-  }
-  return 'http://localhost:5000/api';
-};
+import { API_URL } from './backendConfig';
 
 const TOKEN_KEY = 'transitlink_token';
 const USER_KEY = 'transitlink_user';
 
 const api = axios.create({
-  baseURL: getBaseURL(),
+  baseURL: API_URL,
   headers: {
     'Content-Type': 'application/json',
   },

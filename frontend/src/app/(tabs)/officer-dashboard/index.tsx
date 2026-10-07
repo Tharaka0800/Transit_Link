@@ -6,7 +6,7 @@ import { router, useFocusEffect } from 'expo-router';
 import Navbar from '../../../components/Navbar';
 import Button from '../../../components/Button';
 import { colors } from '../../../theme';
-import { deleteIncident, getIncidents, IncidentAlert } from '../../../utils/OfficerStorage';
+import { deleteIncident, getIncidents, INCIDENT_UPDATED_EVENT, IncidentAlert, socket } from '../../../utils/OfficerApiService';
 
 const metrics = [
   { label: 'Active Buses', value: '150', icon: 'bus-outline' },
@@ -34,9 +34,9 @@ export default function OfficerDashboard() {
   const requestId = useRef(0);
   const firstFocus = useRef(true);
 
-  const loadIncidents = useCallback(async () => {
+  const loadIncidents = useCallback(async (showLoading = true) => {
     const currentRequest = ++requestId.current;
-    setLoading(true);
+    if (showLoading) setLoading(true);
     setLoadError(null);
     try {
       const items = await getIncidents();
@@ -53,14 +53,23 @@ export default function OfficerDashboard() {
   useEffect(() => {
     mounted.current = true;
     void loadIncidents();
+    const refreshIncidents = () => { void loadIncidents(false); };
+    // Attach before connecting so the initial connection and every reconnect
+    // reload changes that could have happened while this device was offline.
+    socket.on(INCIDENT_UPDATED_EVENT, refreshIncidents);
+    socket.on('connect', refreshIncidents);
+    socket.connect();
     return () => {
       mounted.current = false;
       requestId.current += 1;
+      socket.off(INCIDENT_UPDATED_EVENT, refreshIncidents);
+      socket.off('connect', refreshIncidents);
+      socket.disconnect();
     };
   }, [loadIncidents]);
 
   useFocusEffect(useCallback(() => {
-    // The mount effect handles the initial read; later visits refresh persisted changes.
+    // The mount effect handles the initial read; later visits refresh server changes.
     if (firstFocus.current) firstFocus.current = false;
     else void loadIncidents();
     return () => { requestId.current += 1; };

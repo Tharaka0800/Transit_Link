@@ -3,7 +3,7 @@ import { Text, TextInput, TouchableOpacity } from 'react-native';
 import { act, create, ReactTestRenderer } from 'react-test-renderer';
 import { router } from 'expo-router';
 import AddAlert from '../app/officer-dashboard/add-alert';
-import { addIncident, getIncidents, IncidentAlert, updateIncident } from '../utils/OfficerStorage';
+import { addIncident, getIncidents, IncidentAlert, updateIncident } from '../utils/OfficerApiService';
 
 let mockParams: { id?: string | string[] } = {};
 
@@ -16,7 +16,7 @@ jest.mock('expo-router', () => ({
   useLocalSearchParams: () => mockParams,
 }));
 
-jest.mock('../utils/OfficerStorage', () => ({
+jest.mock('../utils/OfficerApiService', () => ({
   addIncident: jest.fn(),
   getIncidents: jest.fn(),
   updateIncident: jest.fn(),
@@ -132,14 +132,14 @@ test('creates trimmed input with the chosen status and goes back after saving', 
 });
 
 test('preserves entered values and shows save failure without navigating', async () => {
-  mockAdd.mockRejectedValueOnce(new Error('Storage is unavailable.'));
+  mockAdd.mockRejectedValueOnce(new Error('Server is unavailable.'));
   await renderForm();
   enter('Bus ID', '154');
   enter('Route', 'CMB → KDY');
   enter('Delay Time', '15m');
   await press('Create Alert');
 
-  expect(textContent()).toContain('Storage is unavailable.');
+  expect(textContent()).toContain('Server is unavailable.');
   expect(field('Bus ID').props.value).toBe('154');
   expect(field('Route').props.value).toBe('CMB → KDY');
   expect(field('Delay Time').props.value).toBe('15m');
@@ -168,6 +168,40 @@ test('hydrates an existing incident and updates its ID with all current field va
   });
   expect(mockAdd).not.toHaveBeenCalled();
   expect(router.back).toHaveBeenCalledTimes(1);
+});
+
+test('shows an unavailable state when an incident was deleted before editing', async () => {
+  mockParams = { id: 'deleted-incident' };
+  await renderForm();
+  expect(textContent()).toContain('This alert is no longer available.');
+  expect(screen!.root.findAllByType(TextInput)).toHaveLength(0);
+  expect(mockAdd).not.toHaveBeenCalled();
+  expect(mockUpdate).not.toHaveBeenCalled();
+});
+
+test('shows a failed API load and repopulates the form after retry', async () => {
+  mockParams = { id: incidentA.id };
+  mockGet.mockRejectedValueOnce(new Error('Unable to reach the server.'));
+  await renderForm();
+  expect(textContent()).toContain('Unable to reach the server.');
+  expect(screen!.root.findAllByType(TextInput)).toHaveLength(0);
+  await press('Retry');
+  expect(field('Bus ID').props.value).toBe(incidentA.busId);
+  expect(field('Route').props.value).toBe(incidentA.route);
+  expect(mockGet).toHaveBeenCalledTimes(2);
+});
+
+test('ignores an older API load after the edit target changes', async () => {
+  const previousLoad = deferred<IncidentAlert[]>();
+  mockParams = { id: incidentA.id };
+  mockGet.mockReturnValueOnce(previousLoad.promise);
+  await renderForm();
+  mockParams = { id: incidentB.id };
+  await act(async () => { screen!.update(<AddAlert />); });
+  expect(field('Bus ID').props.value).toBe(incidentB.busId);
+  await act(async () => { previousLoad.resolve([incidentA]); });
+  expect(field('Bus ID').props.value).toBe(incidentB.busId);
+  expect(field('Route').props.value).toBe(incidentB.route);
 });
 
 test('prevents duplicate submissions while a create request is pending', async () => {

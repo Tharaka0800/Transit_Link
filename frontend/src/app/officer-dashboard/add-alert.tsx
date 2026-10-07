@@ -6,7 +6,7 @@ import Navbar from '../../components/Navbar';
 import FormInput from '../../components/FormInput';
 import Button from '../../components/Button';
 import { colors } from '../../theme';
-import { addIncident, getIncidents, IncidentAlert, updateIncident } from '../../utils/OfficerStorage';
+import { addIncident, getIncidents, IncidentAlert, updateIncident } from '../../utils/OfficerApiService';
 
 type AlertFields = Pick<IncidentAlert, 'busId' | 'route' | 'delayTime' | 'status'>;
 type FieldErrors = Partial<Record<'busId' | 'route' | 'delayTime', string>>;

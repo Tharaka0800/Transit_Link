@@ -23,7 +23,9 @@ Open the **Officer** tab after login. It uses the existing theme, Navbar, FormIn
 - **Update:** choose **Edit** on an incident, change its fields/status, and choose **Save Changes**.
 - **Delete:** choose **Resolve** to remove an incident.
 
-Incidents are stored locally with AsyncStorage under `@transit_incidents`. Two samples are seeded only when this key is missing. An intentionally empty list stays empty after restart. This CRUD flow runs without the backend once you enter the dashboard; authentication and the existing profile/notification screens still use the backend.
+Incidents are stored in Supabase through the authenticated Express API. Start the configured backend before using the dashboard. Create, edit, and resolve operations broadcast a Socket.IO event, so connected dashboards refresh automatically; reconnecting also fetches changes missed while offline. Existing local sample alerts are not uploaded automatically, and an empty database stays empty.
+
+`OfficerApiService.ts` uses the existing Axios client and login token. Its incident types come from `shared/incident.ts`, which is also used by the backend. AsyncStorage continues to hold the login session only.
 
 The metric cards use the requested prototype values. Delay Hotspots and Rerouting are informational cards.
 
@@ -36,16 +38,17 @@ npx expo install --check
 npx expo export --platform all --output-dir dist
 ```
 
-The storage tests cover CRUD, initialization, empty-list persistence, concurrent operations, and error recovery. Form tests cover validation, create/edit submissions, retained inputs after failures, duplicate submission protection, and stale saves after route changes. Native keyboard, safe-area, and gesture checks still require an Android/iOS device or emulator.
+The API tests cover requests, response validation, error messages, and socket authentication. Dashboard tests cover real-time refresh, reconnection, listener cleanup, and stale responses. Form tests cover validation, create/edit submissions, retained inputs after failures, duplicate submission protection, and stale saves after route changes. Native keyboard, safe-area, and gesture checks still require an Android/iOS device or emulator.
 
 ## API base URL
 
-Configured in `src/services/api.js`:
+The REST client and Socket.IO share the origin in `src/services/backendConfig.ts`. Set `EXPO_PUBLIC_API_URL` in `frontend/.env` to your Express server origin **without `/api`**, then restart Expo. See [.env.example](.env.example).
 
-- **Android emulator:** `http://10.0.2.2:5000/api`
-- **iOS simulator:** `http://localhost:5000/api`
+- **Android emulator default:** `http://10.0.2.2:5000`
+- **iOS simulator/web default:** `http://localhost:5000`
+- **Physical device:** your computer's reachable LAN address, for example `http://192.168.1.20:5000`
 
-Ensure the backend is running on port 5000.
+Ensure the device can reach the backend port. If web runs at a custom origin and the backend sets `CORS_ORIGINS`, include that web origin there. Never put a Supabase server key in an `EXPO_PUBLIC_*` variable.
 
 ## Auth storage
 

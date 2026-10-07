@@ -11,12 +11,14 @@ Expo (React Native) + Node.js/Express module for **TransitLink**, covering authe
 │   │   ├── components/                # Navbar, Button, FormInput, BottomNav
 │   │   ├── screens/                   # Home, Login, Profile, Notifications, HelpSupport
 │   │   ├── app/                       # Expo Router stacks, tabs, and officer screens
-│   │   ├── utils/                     # Local incident CRUD and tests
+│   │   ├── utils/                     # Incident API service and tests
 │   │   ├── services/                  # api.js (Axios + AsyncStorage)
 │   │   └── theme.js
 │   ├── app.json
 │   └── package.json
 ├── backend/                           # Node.js REST API
+│   ├── src/                           # TypeScript server, incident controller/repository
+│   ├── db/                            # Supabase SQL schema
 │   ├── controllers/
 │   ├── models/
 │   ├── routes/
@@ -25,13 +27,15 @@ Expo (React Native) + Node.js/Express module for **TransitLink**, covering authe
 │   ├── server.js
 │   ├── package.json
 │   └── .env
+├── shared/                            # Shared TypeScript incident/event contracts
 └── README.md
 ```
 
 ## Prerequisites
 
-- Node.js 18+
+- Node.js 22+
 - MongoDB Atlas or local MongoDB
+- Supabase project for incident storage
 - Expo Go / Android emulator / iOS simulator
 
 ## Quick Start
@@ -41,11 +45,12 @@ Expo (React Native) + Node.js/Express module for **TransitLink**, covering authe
 ```bash
 cd backend
 npm install
-npm run seed
 npm run dev
 ```
 
-API: `http://localhost:5000`
+Before starting, apply `backend/db/schema.sql` in your Supabase SQL editor and put the Supabase URL and server key in an ignored `backend/.env.local`, following `backend/.env.example`. Retain the existing MongoDB/JWT settings in `.env`. Use `npm run seed` for demo accounts when needed; the existing memory-database auto-seeding also remains available.
+
+REST API and Socket.IO: `http://localhost:5000`. See [backend setup](backend/README.md).
 
 ### 2. Frontend (Expo)
 
@@ -77,6 +82,10 @@ Android emulator uses `http://10.0.2.2:5000/api` automatically.
 | GET | `/api/notifications` | Read notifications |
 | POST | `/api/notifications` | Create notification |
 | DELETE | `/api/notifications/:id` | Dismiss notification |
+| GET | `/api/incidents` | Read Supabase incidents |
+| POST | `/api/incidents` | Create incident and broadcast update |
+| PUT | `/api/incidents/:id` | Update incident and broadcast update |
+| DELETE | `/api/incidents/:id` | Resolve/delete incident and broadcast update |
 
 ## Screens (Milestone prototypes)
 
@@ -90,7 +99,7 @@ Android emulator uses `http://10.0.2.2:5000/api` automatically.
 | My Tickets (Upcoming / Past) | Done |
 | Favourite Routes | Done (Routes tab) |
 | Fare Information (Calculator / General) | Done |
-| Transport Officer Dashboard / Add & Edit Alert | Done (Officer tab, local CRUD) |
+| Transport Officer Dashboard / Add & Edit Alert | Done (Officer tab, Supabase CRUD + Socket.IO) |
 
 ## Design
 
@@ -99,6 +108,7 @@ Android emulator uses `http://10.0.2.2:5000/api` automatically.
 - Styling: React Native `StyleSheet.create`
 - Navigation: Expo Router + bottom tabs (Home, Routes, Tickets, Profile, Officer)
 - Session: AsyncStorage for JWT
-- Officer incidents: AsyncStorage key `@transit_incidents`; sample alerts seed once, and Resolve deletes an alert
+- Officer incidents: Supabase PostgreSQL via authenticated Express REST; Socket.IO updates connected dashboards
+- Shared incident and event types: `shared/incident.ts`
 
 See [frontend setup and validation](frontend/README.md) for the officer CRUD demonstration and check commands. The project remains on Expo SDK 51.
