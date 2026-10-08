@@ -1,6 +1,6 @@
 # TransitLink account and notification backend
 
-This Express server supports the existing login, registration, profile, and notification features using MongoDB and JWT authentication. The Transport Officer dashboard uses AsyncStorage on the device and does not connect to this server.
+This Express server powers online ticket accounts, journey search, bus departures, seat holds, bookings, and QR verification using MongoDB and JWT authentication. The frontend uses local AsyncStorage for its offline profiles, notifications, saved routes, and Officer incidents. **The backend must run for online ticket features.**
 
 ## Setup
 
@@ -32,7 +32,7 @@ Run `npm run seed` to reset and repopulate the configured demo database. This co
 
 Profile and notification routes require `Authorization: Bearer <login token>`. Their controllers, models, and middleware retain the existing behavior.
 
-The frontend backend URL setting applies to account, notification, journey search, and ticket booking routes. Use **Open Officer Dashboard** on the login screen to demonstrate Officer CRUD without starting a backend or signing in. Officer validation commands are documented in [frontend/README.md](../frontend/README.md).
+Set EXPO_PUBLIC_API_URL in frontend/.env to this server origin (without /api) for online ticket accounts and booking. Sign in locally as officer@transitlink.lk to use offline Officer CRUD. Online QR verification requires the backend admin account. Offline profile and notification screens do not call this server.
 
 ## Demo ticket journeys
 

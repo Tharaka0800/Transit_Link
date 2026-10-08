@@ -1,6 +1,6 @@
 # TransitLink Frontend (Expo / React Native)
 
-Mobile client for TransitLink, including the passenger screens and Transport Officer Dashboard.
+TransitLink runs on Expo SDK 51. Accounts, sessions, profiles, notifications, saved routes, and Officer alerts use AsyncStorage exclusively. No backend URL, database configuration, or internet connection is needed for these operations.
 
 ## Setup
 
@@ -10,28 +10,51 @@ npm install
 npx expo start
 ```
 
-Then press `a` for Android emulator or `w` for web. This project remains on Expo SDK 51, so native testing requires an SDK 51-compatible Expo Go client or development build.
+Press `a` for Android or `w` for web. Use an SDK 51-compatible Expo Go client or development build. Metro must be reachable to load the development bundle; the loaded app performs local account and Officer operations offline. Online tickets need a reachable backend. A standalone build can launch without Metro.
 
-The entry point is `expo-router/entry`. File routes live in `src/app`, and existing JavaScript screen implementations remain in `src/screens`. The bottom tabs are Home, Routes, Tickets, Profile, and Officer. The Add/Edit Alert form is a root-stack screen with the tab bar hidden.
+The entry point is `expo-router/entry`. Routes live in `src/app`; existing screen implementations remain in `src/screens`. Tabs are Home, Routes, Tickets, Profile, and Officer for signed-in officers only. The alert form opens in the root stack above the tabs.
 
-## Officer dashboard
+## Offline authentication
 
-On a fresh install, choose **Open Officer Dashboard** beneath Login to demonstrate the Officer workload offline. This does not create a login session. Signed-in users can also open the fifth **Officer** tab. The dashboard and form use the existing theme, Navbar, FormInput, and Button components, and the form opens above the tabs.
+| Role | Email / username | Password |
+| --- | --- | --- |
+| Passenger | `tharukee01@gmail.com` | `password123` |
+| Passenger | `passenger.demo@transitlink.lk` | `password123` |
+| Admin | `admin@transitlink.lk` | `admin123` |
+| Transport officer | `officer@transitlink.lk` | `OfficerDemo@2026` |
 
-- **Read:** the dashboard lists persisted incident alerts, newest first.
-- **Create:** choose **+ New Alert**, enter Bus ID, Route, and Delay Time, select a status, and choose **Create Alert**.
-- **Update:** choose **Edit** on an incident, change its fields/status, and choose **Save Changes**.
-- **Delete:** choose **Resolve** to remove an incident.
+Demo accounts initialize only when the database is missing. Registration creates passengers and checks required fields, unique email addresses, and unique non-empty phone numbers. Login accepts the existing email/phone field and verifies a salted bcrypt hash locally. Sessions persist until logout or account deletion.
 
-Incidents are stored exclusively on the device with `@react-native-async-storage/async-storage`, under `@transit_incidents`. No backend, login token, internet connection, or API configuration is required for Officer CRUD. The dashboard loads on mount and refreshes when it regains focus after a save or tab change.
+Officers open SmartBus Dashboard directly; passengers and admins open Home. The **Open Officer Dashboard** shortcut has been removed. Both Officer screens reject unauthorized direct links before mounting their contents, and the Officer tab is hidden for guests and other roles. The local account record supplies the role; profile forms cannot change it.
 
-`src/utils/OfficerStorage.ts` defines `IncidentAlert` and exports `getIncidents`, `addIncident`, `updateIncident`, and `deleteIncident`. Reads and mutations are serialized to avoid lost changes. New alerts receive a unique string ID and numeric creation timestamp; edits preserve both. Updating an unknown ID reports an error; deleting an unknown ID is harmless.
+The built-in Officer account's email, password, role, and deletion are protected so these credentials remain available. Password recovery is unavailable in this local prototype; no reset email is sent.
 
-Two sample alerts initialize only when the key is missing, including Bus 154, CMB → KDY, 15m, URGENT. An intentionally stored `[]` stays empty after reload/restart. Corrupt stored data and storage failures produce useful errors without replacing existing data. Dashboard retry and form error states let the user retry after the problem is corrected.
+## Local database and migration
 
-Status badges use the existing red and green tokens and the Routes screen's orange token for WARNING. Status selection remains textual and accessible.
+`src/services/LocalAppStorage.ts` stores users, notifications, saved routes, and the active session in a versioned database at `@transitlink_app_v1`. `src/services/api.js` retains original service names and `{ data }` response shapes, but performs local operations. Passwords use asynchronous bcrypt at cost 10 with secure randomness from `expo-crypto`; plaintext passwords are not persisted.
 
-The metric cards use the requested prototype values. Delay Hotspots and Rerouting are informational cards.
+Notifications and saved routes belong to the signed-in account. Profile edits, notification CRUD, unread counts, and route changes persist across restarts. Account deletion removes its related records and session while preserving Officer incidents. Remote default avatars use offline fallbacks. Help & Support reports are saved locally.
+
+Reads, initialization, and mutations are serialized. Malformed data and storage failures report errors without overwriting the existing data. Intentionally empty collections stay empty.
+
+Obsolete backend sessions are discarded. Earlier backend users must register locally again; incident data remains intact. Accounts do not synchronize across devices or browsers. Clearing application data removes the local database. Access checks restrict normal app navigation rather than device-storage tampering.
+
+## Officer dashboard CRUD
+
+Sign in as the Officer and demonstrate:
+
+1. **Read:** review persisted incidents, newest first.
+2. **Create:** choose **+ New Alert**, enter Bus ID, Route, and Delay Time, choose a status, then **Create Alert**.
+3. **Update:** choose **Edit**, change fields/status, then **Save Changes**.
+4. **Delete:** choose **Resolve** to remove an incident.
+
+Incidents use `src/utils/OfficerStorage.ts` and the separate `@transit_incidents` key. Two samples initialize only when the key is missing, including Bus 154, CMB → KDY, 15m, URGENT. An intentionally stored `[]` stays empty after reload or restart.
+
+New incidents receive unique IDs and numeric creation timestamps; edits preserve both. Updating an unknown ID reports an error; deleting an absent ID is harmless. Loading, focus refresh, retry/empty states, form validation, duplicate-action protection, and stale-response guards remain in place.
+
+Screens reuse the existing theme, Navbar, FormInput, and Button. Status badges use shared red, orange, and green tokens with text labels. Metric values remain static; Delay Hotspots and Rerouting are informational.
+
+Confirmation and validation dialogs use native alerts on Android/iOS and a shared themed modal on web. Logout, account deletion, and saved-route choices work on each platform.
 
 ## Validation
 
@@ -42,19 +65,30 @@ npx expo install --check
 npx expo export --platform all --output-dir dist
 ```
 
-Storage tests cover one-time seeding, sorting, unique creation, partial updates, immutable metadata, deletion, empty-list persistence after module restart, overlapping mutations, malformed data, storage failures, and recovery. Dashboard/form tests cover local loading, focus refresh, validation, missing IDs, duplicate operations, retained inputs after failures, and stale async results. Native keyboard, safe-area, and gesture checks still require an Android/iOS device or emulator.
+Tests cover initialization, authentication, role restrictions, sessions, profile CRUD, per-user notifications and saved routes, corrupt storage, concurrency, storage failures, and recovery. Officer tests cover seeding, ordering, unique IDs, immutable metadata, partial edits, deletion, empty-list persistence, focus refresh, validation, missing IDs, duplicate actions, and stale async results.
 
-For a manual offline check, stop the backend, open the login shortcut, create an alert, edit it, and resolve it. Reload the app to check persistence. Resolve every alert and reload again to verify the dashboard stays empty. Check the dashboard and form at 320px and 390px widths, and verify that saving returns to the dashboard.
+Offline branch checks recorded on 2026-10-08, before ticket integration:
 
-## Account and notification API base URL
+- TypeScript checking, all 148 tests across 8 suites, SDK dependency checks, and Android/iOS/web exports passed on Expo 51.0.39.
+- The production web build passed 34 browser scenarios with nonlocal requests blocked and no API requests. Login, dashboard, and form layouts fit 320px and 390px widths.
+- Pixel 7 emulator testing passed registration, passenger login/logout, direct Officer login, and incident Create/Read/Update/Resolve with no active internet connection or account backend. A JavaScript/activity restart restored the Officer session and edited alert.
+- Native iOS device testing was unavailable in the Windows environment. Full native process restart was not tested because automatic approval review rejected the ADB force-stop command as "blocked by policy"; persistence passed a JavaScript/activity restart. Native empty-list testing was skipped to preserve existing incidents; browser and unit tests verified it. Development restarts still need Metro to serve the bundle; local authentication and data operations do not.
 
-Teammates' account and notification screens continue to use the existing Axios REST client and JWT session. Their origin is configured in `src/services/backendConfig.ts`. Set `EXPO_PUBLIC_API_URL` in `frontend/.env` to your Express server origin **without `/api`**, then restart Expo. See [.env.example](.env.example). This setting does not affect the local Officer feature.
+Manual Pixel 7 offline checks:
 
-- **Android emulator default:** `http://10.0.2.2:5000`
-- **iOS simulator/web default:** `http://localhost:5000`
-- **Physical device:** your computer's reachable LAN address, for example `http://192.168.1.20:5000`
+1. Load the app with Metro available, then disable internet access on the device.
+2. Register a passenger. Verify Home opens and the Officer tab is absent.
+3. Restart, check session restoration, and change the profile, notifications, and saved routes.
+4. Log out and sign in as Officer. Verify the dashboard opens directly.
+5. Create, read, edit, and resolve an alert. Restart to verify persistence. Resolve every alert and restart to verify the empty list remains.
+6. As a guest or passenger, attempt direct links to both Officer screens and verify access is denied.
+7. Check 320px/390px widths, keyboard avoidance, safe areas, and save/back behavior. Native keyboard and gesture checks require a device or emulator.
 
-Ensure the device can reach the backend port when using account or notification features.
+## Online ticket accounts and backend
+
+Ticket booking uses src/services/ticketApi.ts with a separate server JWT session. From Tickets, choose Sign in and use your existing backend credentials, or create an online ticket account. This does not replace the local profile or grant a local Officer role. Local logout also clears the online ticket session. Set EXPO_PUBLIC_API_URL in frontend/.env to the reachable backend origin, without /api, and restart Expo. Physical phones must use the computer LAN address, not localhost. Run npm start in backend. Use Verify ticket QR from Tickets and sign in with an online admin account for scanning.
+
+Local accounts and online ticket accounts are separate; creating one does not create the other. Existing backend tickets remain linked to their original backend account.
 
 ## Bus seat booking
 
@@ -68,7 +102,7 @@ The ticket review screen includes a payment-method selector for Transit Smart Ba
 
 ## Auth storage
 
-JWT and user session are stored with `@react-native-async-storage/async-storage`.
+Local sessions use LocalAppStorage. Online ticket sessions use a separate AsyncStorage key, @transitlink_online_ticket_session. Local Officer roles do not authorize backend ticket verification.
 
 ## Screens
 

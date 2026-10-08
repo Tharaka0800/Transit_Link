@@ -6,8 +6,10 @@ import AddAlert from '../app/officer-dashboard/add-alert';
 import { addIncident, getIncidents, IncidentAlert, updateIncident } from '../utils/OfficerStorage';
 
 let mockParams: { id?: string | string[] } = {};
+let mockAuth: any;
 
 jest.mock('expo-router', () => ({
+  Redirect: ({ href }: { href: string }) => require('react').createElement(require('react-native').Text, { testID: 'auth-redirect' }, href),
   router: {
     back: jest.fn(),
     replace: jest.fn(),
@@ -15,6 +17,7 @@ jest.mock('expo-router', () => ({
   },
   useLocalSearchParams: () => mockParams,
 }));
+jest.mock('../auth/AuthProvider', () => ({ useAuth: () => mockAuth }));
 
 jest.mock('../utils/OfficerStorage', () => ({
   addIncident: jest.fn(),
@@ -88,6 +91,7 @@ function textContent() {
 }
 
 beforeEach(() => {
+  mockAuth = { session: { token: 'local-officer-session', user: { _id: 'officer', role: 'officer' } }, loading: false, isRestoring: false, error: null, retry: jest.fn() };
   mockParams = {};
   mockAdd.mockReset();
   mockGet.mockReset();
@@ -96,6 +100,25 @@ beforeEach(() => {
   mockGet.mockResolvedValue([incidentA, incidentB]);
   mockAdd.mockResolvedValue(incidentA);
   mockUpdate.mockResolvedValue(incidentA);
+});
+
+test.each(['passenger', 'admin'])('rejects direct edit access by a %s before loading or changing incidents', async (role) => {
+  mockAuth.session.user.role = role;
+  mockParams = { id: incidentA.id };
+  await renderForm();
+  expect(textContent()).toContain('/(tabs)/home');
+  expect(mockGet).not.toHaveBeenCalled();
+  expect(mockAdd).not.toHaveBeenCalled();
+  expect(mockUpdate).not.toHaveBeenCalled();
+  expect(screen!.root.findAllByType(TextInput)).toHaveLength(0);
+});
+
+test('rejects a guest creation link without mounting the form', async () => {
+  mockAuth.session = null;
+  await renderForm();
+  expect(textContent()).toContain('/login');
+  expect(mockAdd).not.toHaveBeenCalled();
+  expect(screen!.root.findAllByType(TextInput)).toHaveLength(0);
 });
 
 afterEach(() => {

@@ -145,7 +145,7 @@ export default function TicketDetailsScreen() {
             </Text>
             <Button
               variant="secondary"
-              onPress={() => (signedOut ? router.push('/login') : void load())}
+              onPress={() => (signedOut ? router.push('/ticketing/login') : void load())}
             >
               {signedOut ? 'Sign in' : 'Try again'}
             </Button>

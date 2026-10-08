@@ -18,7 +18,7 @@ import Button from '../components/Button';
 import JourneyDateTimePicker from '../components/ticketing/JourneyDateTimePicker';
 import BusSeatPicker from '../components/ticketing/BusSeatPicker';
 import PaymentMethodSelector from '../components/ticketing/PaymentMethodSelector';
-import { getStoredUser, getToken } from '../services/api';
+import { getStoredUser, getToken } from '../services/ticketApi';
 import {
   Journey,
   Quote,
@@ -263,7 +263,7 @@ export default function TicketPurchaseScreen() {
                 {error ||
                   'Use your TransitLink account to keep your tickets safe.'}
               </Text>
-              <Button onPress={() => router.push('/login')}>Sign in</Button>
+              <Button onPress={() => router.push('/ticketing/login')}>Sign in</Button>
             </View>
           ) : quote ? (
             <>

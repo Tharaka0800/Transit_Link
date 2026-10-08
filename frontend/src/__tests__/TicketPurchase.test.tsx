@@ -5,7 +5,7 @@ import BusSeatPicker from '../components/ticketing/BusSeatPicker';
 import { act, create, ReactTestRenderer } from 'react-test-renderer';
 import { router } from 'expo-router';
 import TicketPurchaseScreen from '../screens/TicketPurchaseScreen';
-import { getToken, getStoredUser } from '../services/api';
+import { getToken, getStoredUser } from '../services/ticketApi';
 import {
   loadJourneys,
   releaseSeatHold,
@@ -24,7 +24,7 @@ jest.mock('expo-router', () => ({
     canGoBack: () => true,
   },
 }));
-jest.mock('../services/api', () => ({
+jest.mock('../services/ticketApi', () => ({
   getToken: jest.fn(),
   getStoredUser: jest.fn(),
 }));
@@ -107,7 +107,7 @@ async function renderJourney() {
 }
 beforeEach(() => {
   jest.mocked(getToken).mockResolvedValue('existing-session');
-  jest.mocked(getStoredUser).mockResolvedValue({ fullName: 'Passenger' });
+  jest.mocked(getStoredUser).mockResolvedValue({ _id: 'server-user', fullName: 'Passenger', email: 'passenger@example.test', role: 'passenger', token: 'session' });
   jest.mocked(loadJourneys).mockResolvedValue([journey]);
   jest.mocked(quoteJourney).mockResolvedValue(quote);
   jest.mocked(purchaseQuote).mockResolvedValue(ticket);

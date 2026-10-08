@@ -15,7 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import Navbar from '../components/Navbar';
 import Button from '../components/Button';
 import TicketStatusBadge from '../components/ticketing/TicketStatusBadge';
-import { getToken, getUserProfile } from '../services/api';
+import { getToken, getUserProfile } from '../services/ticketApi';
 import {
   Ticket,
   verifyQR,
@@ -204,10 +204,10 @@ export default function TicketVerificationScreen() {
             </Text>
             <Text style={styles.subtitle}>
               {error ||
-                'Verification uses the admin account for this university demo. Local Officer alerts remain available without login.'}
+                'Verification requires the online admin account for this university demo. Officer alerts use your local Officer account.'}
             </Text>
             {access === 'signedOut' ? (
-              <Button onPress={() => router.push('/login')}>Sign in</Button>
+              <Button onPress={() => router.push({ pathname: '/ticketing/login', params: { next: 'verify' } })}>Sign in</Button>
             ) : access === 'error' ? (
               <Button
                 onPress={() => {
@@ -219,9 +219,9 @@ export default function TicketVerificationScreen() {
             ) : (
               <Button
                 variant="secondary"
-                onPress={() => router.push('/(tabs)/profile')}
+                onPress={() => router.push({ pathname: '/ticketing/login', params: { next: 'verify' } })}
               >
-                Manage account
+                Switch online account
               </Button>
             )}
           </View>

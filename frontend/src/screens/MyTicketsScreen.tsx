@@ -14,7 +14,7 @@ import { router, useFocusEffect } from 'expo-router';
 import Navbar from '../components/Navbar';
 import Button from '../components/Button';
 import TicketCard from '../components/ticketing/TicketCard';
-import { getToken } from '../services/api';
+import { getToken } from '../services/ticketApi';
 import {
   isSessionError,
   loadTickets,
@@ -105,6 +105,9 @@ export default function MyTicketsScreen() {
         }
       >
         <View style={styles.hero}>
+          <TouchableOpacity accessibilityRole="button" accessibilityLabel="Open ticket scanner" onPress={() => router.push('/officer-dashboard/verify-ticket')} style={{ alignSelf: 'flex-end', padding: 8 }}>
+            <Text style={{ color: colors.white }}>Verify ticket QR</Text>
+          </TouchableOpacity>
           <View style={styles.heroTop}>
             <View style={styles.heroIcon}>
               <Ionicons name="ticket-outline" size={26} color={colors.white} />
@@ -119,12 +122,15 @@ export default function MyTicketsScreen() {
             style={styles.heroButton}
             textStyle={{ color: colors.brandDark }}
             onPress={() =>
-              router.push(signedOut ? '/login' : '/ticketing/purchase')
+              router.push(signedOut ? '/ticketing/login' : '/ticketing/purchase')
             }
           >
             + New Ticket
           </Button>
         </View>
+        {!signedOut && <TouchableOpacity accessibilityRole="button" accessibilityLabel="Switch online ticket account" onPress={() => router.push('/ticketing/login')} style={{ padding: 12 }}>
+          <Text style={{ color: colors.brand }}>Switch online ticket account</Text>
+        </TouchableOpacity>}
         {signedOut ? (
           <View style={styles.empty}>
             <Ionicons
@@ -137,7 +143,7 @@ export default function MyTicketsScreen() {
               {error ||
                 'Sign in to purchase a ticket and access your journey history.'}
             </Text>
-            <Button onPress={() => router.push('/login')}>Sign in</Button>
+            <Button onPress={() => router.push('/ticketing/login')}>Sign in</Button>
           </View>
         ) : (
           <>

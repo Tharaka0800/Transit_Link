@@ -3,7 +3,7 @@ import { AxiosHeaders } from 'axios';
 import { Text, TextInput, TouchableOpacity } from 'react-native';
 import { act, create, ReactTestRenderer } from 'react-test-renderer';
 import TicketVerificationScreen from '../screens/TicketVerificationScreen';
-import { getToken, getUserProfile } from '../services/api';
+import { getToken, getUserProfile } from '../services/ticketApi';
 import { verifyQR, redeemQR, Ticket } from '../services/ticketService';
 
 jest.mock('expo-router', () => ({
@@ -23,7 +23,7 @@ jest.mock('expo-camera', () => ({
     jest.fn(),
   ],
 }));
-jest.mock('../services/api', () => ({
+jest.mock('../services/ticketApi', () => ({
   getToken: jest.fn(),
   getUserProfile: jest.fn(),
 }));
@@ -60,7 +60,7 @@ const ticket: Ticket = {
   usedAt: null,
 };
 const profileResponse = (role: string) => ({
-  data: { role },
+  data: { _id: 'server-user', fullName: 'Verifier', email: 'verifier@example.test', token: 'session', role },
   status: 200,
   statusText: 'OK',
   headers: {},

@@ -12,7 +12,7 @@ import TicketCard from '../components/ticketing/TicketCard';
 import useTicketAutoRefresh from '../hooks/useTicketAutoRefresh';
 import MyTicketsScreen from '../screens/MyTicketsScreen';
 import TicketDetailsScreen from '../screens/TicketDetailsScreen';
-import { getToken } from '../services/api';
+import { getToken } from '../services/ticketApi';
 import { loadTicket, loadTickets, Ticket } from '../services/ticketService';
 import { formatTicketDate } from '../utils/ticketUtils';
 
@@ -22,7 +22,7 @@ jest.mock('expo-router', () => ({
   useFocusEffect: (effect: () => void) =>
     require('react').useEffect(effect, [effect]),
 }));
-jest.mock('../services/api', () => ({ getToken: jest.fn() }));
+jest.mock('../services/ticketApi', () => ({ getToken: jest.fn() }));
 jest.mock('../services/ticketService', () => ({
   ...jest.requireActual('../services/ticketService'),
   loadTicket: jest.fn(),

@@ -1,4 +1,4 @@
-import api from './api';
+import api from './ticketApi';
 export type TicketStatus = 'Upcoming' | 'Active' | 'Used' | 'Expired';
 export type PaymentMethod = 'transit-balance' | 'card' | 'mobile-wallet';
 export interface Journey {

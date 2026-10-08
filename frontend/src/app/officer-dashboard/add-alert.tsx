@@ -6,6 +6,7 @@ import Navbar from '../../components/Navbar';
 import FormInput from '../../components/FormInput';
 import Button from '../../components/Button';
 import { colors } from '../../theme';
+import OfficerGuard from '../../auth/OfficerGuard';
 import { addIncident, getIncidents, IncidentAlert, updateIncident } from '../../utils/OfficerStorage';
 
 type AlertFields = Pick<IncidentAlert, 'busId' | 'route' | 'delayTime' | 'status'>;
@@ -14,6 +15,10 @@ const emptyForm: AlertFields = { busId: '', route: '', delayTime: '', status: 'U
 const statuses: IncidentAlert['status'][] = ['URGENT', 'WARNING', 'RESOLVED'];
 
 export default function AddAlert() {
+  return <OfficerGuard><AddAlertContent /></OfficerGuard>;
+}
+
+function AddAlertContent() {
   const params = useLocalSearchParams<{ id?: string | string[] }>();
   const id = Array.isArray(params.id) ? params.id[0] : params.id;
   const editing = id !== undefined;

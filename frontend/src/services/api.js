@@ -1,82 +1,39 @@
-import axios from 'axios';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { API_URL } from './backendConfig';
+import * as local from './LocalAppStorage';
+import { clearTicketAuth } from './ticketApi';
 
-const TOKEN_KEY = 'transitlink_token';
-const USER_KEY = 'transitlink_user';
-
-const api = axios.create({
-  baseURL: API_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-  timeout: 15000,
-});
-
-api.interceptors.request.use(
-  async (config) => {
-    const token = await AsyncStorage.getItem(TOKEN_KEY);
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => Promise.reject(error)
-);
-
-api.interceptors.response.use(
-  (response) => response,
-  async (error) => {
-    if (error.response?.status === 401) {
-      const isAuthRoute =
-        error.config?.url?.includes('/users/login') ||
-        error.config?.url?.includes('/users/register');
-      if (!isAuthRoute) {
-        await AsyncStorage.multiRemove([TOKEN_KEY, USER_KEY]);
-      }
-    }
-    return Promise.reject(error);
-  }
-);
-
-// Auth & Profile
-export const registerUser = (data) => api.post('/users/register', data);
-export const loginUser = (data) => api.post('/users/login', data);
-export const getUserProfile = () => api.get('/users/profile');
-export const updateUserProfile = (data) => api.put('/users/profile', data);
-export const deleteUserProfile = () => api.delete('/users/profile');
-
-// Notifications
-export const getNotifications = (params) =>
-  api.get('/notifications', { params });
-export const createNotification = (data) => api.post('/notifications', data);
-export const markNotificationRead = (id) => api.put(`/notifications/${id}`);
-export const deleteNotification = (id) => api.delete(`/notifications/${id}`);
-
-export const saveAuth = async (userData) => {
-  await AsyncStorage.setItem(TOKEN_KEY, userData.token);
-  await AsyncStorage.setItem(
-    USER_KEY,
-    JSON.stringify({
-      _id: userData._id,
-      fullName: userData.fullName,
-      email: userData.email,
-      phone: userData.phone,
-      role: userData.role,
-      avatar: userData.avatar,
-    })
-  );
+// Keep the response shapes used by teammates' screens while performing every
+// operation locally. No server URL, HTTP client, or internet connection is used.
+export const registerUser = async (data) => ({ data: await local.registerUser(data) });
+export const loginUser = async (data) => ({ data: await local.loginUser(data) });
+export const getUserProfile = async () => ({ data: await local.getUserProfile() });
+export const updateUserProfile = async (data) => ({ data: await local.updateUserProfile(data) });
+export const deleteUserProfile = async () => {
+  await clearTicketAuth();
+  return { data: await local.deleteUserProfile() };
 };
 
+export const getNotifications = async (params) => ({ data: await local.getNotifications(params) });
+export const createNotification = async (data) => ({ data: await local.createNotification(data) });
+export const markNotificationRead = async (id) => ({ data: await local.markNotificationRead(id) });
+export const deleteNotification = async (id) => ({ data: await local.deleteNotification(id) });
+
+export const getSavedRoutes = async () => ({ data: await local.getSavedRoutes() });
+export const addSampleSavedRoute = async () => ({ data: await local.addSampleSavedRoute() });
+export const toggleSavedRoute = async (id) => ({ data: await local.toggleSavedRoute(id) });
+
+export const saveAuth = local.saveAuth;
 export const clearAuth = async () => {
-  await AsyncStorage.multiRemove([TOKEN_KEY, USER_KEY]);
+  await clearTicketAuth();
+  await local.clearAuth();
 };
+export const getStoredUser = local.getStoredUser;
+export const getToken = local.getToken;
+export const getAuthSession = local.getAuthSession;
+export const subscribeAuth = local.subscribeAuth;
 
-export const getStoredUser = async () => {
-  const raw = await AsyncStorage.getItem(USER_KEY);
-  return raw ? JSON.parse(raw) : null;
+export default {
+  registerUser, loginUser, getUserProfile, updateUserProfile, deleteUserProfile,
+  getNotifications, createNotification, markNotificationRead, deleteNotification,
+  getSavedRoutes, addSampleSavedRoute, toggleSavedRoute,
+  saveAuth, clearAuth, getStoredUser, getToken, getAuthSession, subscribeAuth,
 };
-
-export const getToken = async () => AsyncStorage.getItem(TOKEN_KEY);
-
-export default api;

@@ -9,9 +9,11 @@ import { colors } from '../theme';
 type FocusCallback = () => void | (() => void);
 let mockFocusSetup: FocusCallback | undefined;
 let mockFocusCleanup: void | (() => void);
+let mockAuth: any;
 
 jest.mock('expo-router', () => ({
   router: { push: jest.fn() },
+  Redirect: ({ href }: { href: string }) => require('react').createElement(require('react-native').Text, { testID: 'auth-redirect' }, href),
   useFocusEffect: (callback: FocusCallback) => require('react').useEffect(() => {
     mockFocusSetup = callback;
     mockFocusCleanup = callback();
@@ -22,6 +24,7 @@ jest.mock('expo-router', () => ({
     };
   }, [callback]),
 }));
+jest.mock('../auth/AuthProvider', () => ({ useAuth: () => mockAuth }));
 jest.mock('../utils/OfficerStorage', () => ({
   getIncidents: jest.fn(),
   deleteIncident: jest.fn(),
@@ -73,10 +76,35 @@ function textContent() {
 }
 
 beforeEach(() => {
+  mockAuth = { session: { token: 'local-officer-session', user: { _id: 'officer', role: 'officer' } }, loading: false, isRestoring: false, error: null, retry: jest.fn() };
   mockGet.mockReset();
   mockDelete.mockReset();
   mockGet.mockResolvedValue([incident]);
   mockDelete.mockResolvedValue(undefined);
+});
+
+test.each(['passenger', 'admin'])('rejects direct dashboard access by a %s before reading local incidents', async (role) => {
+  mockAuth.session.user.role = role;
+  await renderDashboard();
+  expect(textContent()).toContain('/(tabs)/home');
+  expect(mockGet).not.toHaveBeenCalled();
+  expect(mockDelete).not.toHaveBeenCalled();
+  expect(screen!.root.findAllByType(FlatList)).toHaveLength(0);
+});
+
+test('rejects a guest dashboard link without initializing incidents', async () => {
+  mockAuth.session = null;
+  await renderDashboard();
+  expect(textContent()).toContain('/login');
+  expect(mockGet).not.toHaveBeenCalled();
+});
+
+test('waits for session restoration before mounting the dashboard', async () => {
+  mockAuth.loading = true;
+  mockAuth.isRestoring = true;
+  await renderDashboard();
+  expect(mockGet).not.toHaveBeenCalled();
+  expect(screen!.root.findAllByType(ActivityIndicator)).toHaveLength(1);
 });
 
 afterEach(() => {
