@@ -1,22 +1,23 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  Image,
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { router, useFocusEffect } from 'expo-router';
+import { Redirect, router, useFocusEffect } from 'expo-router';
 import Navbar from '../components/Navbar';
 import FormInput from '../components/FormInput';
 import Button from '../components/Button';
+import LocalAvatar from '../components/LocalAvatar';
+import { useAuth } from '../auth/AuthProvider';
+import AuthLoading from '../auth/AuthLoading';
 import {
   getUserProfile,
   updateUserProfile,
@@ -24,12 +25,9 @@ import {
   getNotifications,
   clearAuth,
   saveAuth,
-  getToken,
 } from '../services/api';
+import { showAlert } from '../components/AppAlert';
 import { colors } from '../theme';
-
-const DEFAULT_AVATAR =
-  'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&h=200&fit=crop';
 
 const menuItems = [
   { key: 'edit', label: 'Edit Profile', icon: 'person-outline' },
@@ -46,7 +44,18 @@ const tabPaths = {
 };
 
 const Profile = () => {
+  const { session, isRestoring } = useAuth();
+  const tokenRef = useRef(session?.token);
+  tokenRef.current = session?.token;
+  const mountedRef = useRef(true);
+  const savePending = useRef(false);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
   const [user, setUser] = useState(null);
+  const [loadedToken, setLoadedToken] = useState(null);
+  const [loadError, setLoadError] = useState(null);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState('profile');
@@ -57,19 +66,18 @@ const Profile = () => {
   });
   const [saving, setSaving] = useState(false);
 
-  const load = useCallback(async () => {
-    const token = await getToken();
-    if (!token) {
-      router.replace('/login');
-      return;
-    }
+  const load = useCallback(async (isActive) => {
+    if (!session?.token) return;
     try {
       setLoading(true);
+      setLoadError(null);
       const [profileRes, notifRes] = await Promise.all([
         getUserProfile(),
         getNotifications(),
       ]);
+      if (!isActive()) return;
       setUser(profileRes.data);
+      setLoadedToken(session.token);
       setEditForm({
         fullName: profileRes.data.fullName || '',
         email: profileRes.data.email || '',
@@ -77,17 +85,22 @@ const Profile = () => {
       });
       setUnreadCount(notifRes.data.unreadCount || 0);
     } catch (err) {
-      Alert.alert('Error', err.response?.data?.message || 'Failed to load profile');
+      if (isActive()) {
+        setLoadError({ token: session.token, message: err.response?.data?.message || err.message || 'Failed to load profile' });
+      }
     } finally {
-      setLoading(false);
+      if (isActive()) setLoading(false);
     }
-  }, []);
+  }, [session?.token]);
 
   useFocusEffect(
     useCallback(() => {
+      let active = true;
+      if (isRestoring || !session) return;
       setView('profile');
-      load();
-    }, [load])
+      void load(() => active);
+      return () => { active = false; };
+    }, [load, isRestoring, session?.token])
   );
 
   const handleMenu = (item) => {
@@ -113,36 +126,50 @@ const Profile = () => {
   };
 
   const handleSave = async () => {
+    if (savePending.current || !session) return;
+    const token = session.token;
+    const isActive = () => mountedRef.current && tokenRef.current === token;
+    savePending.current = true;
     setSaving(true);
     try {
       const { data } = await updateUserProfile(editForm);
+      if (!isActive()) return;
       await saveAuth(data);
+      if (!isActive()) return;
       setUser(data);
-      Alert.alert('Success', 'Profile updated successfully');
+      showAlert('Success', 'Profile updated successfully');
       setView('profile');
     } catch (err) {
-      Alert.alert('Update failed', err.response?.data?.message || err.message);
+      if (isActive()) showAlert('Update failed', err.response?.data?.message || err.message);
     } finally {
-      setSaving(false);
+      savePending.current = false;
+      if (isActive()) setSaving(false);
     }
   };
 
   const handleLogout = () => {
-    Alert.alert('Log Out', 'Are you sure you want to log out?', [
+    const token = session?.token;
+    showAlert('Log Out', 'Are you sure you want to log out?', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Log Out',
         style: 'destructive',
         onPress: async () => {
-          await clearAuth();
-          router.replace('/login');
+          if (tokenRef.current !== token) return;
+          try {
+            await clearAuth();
+            if (mountedRef.current) router.replace('/login');
+          } catch (err) {
+            if (mountedRef.current) showAlert('Log out failed', err.response?.data?.message || err.message);
+          }
         },
       },
     ]);
   };
 
   const handleDelete = () => {
-    Alert.alert(
+    const token = session?.token;
+    showAlert(
       'Delete Account',
       'This cannot be undone. Delete your account?',
       [
@@ -151,12 +178,12 @@ const Profile = () => {
           text: 'Delete',
           style: 'destructive',
           onPress: async () => {
+            if (tokenRef.current !== token) return;
             try {
               await deleteUserProfile();
-              await clearAuth();
-              router.replace('/login');
+              if (mountedRef.current) router.replace('/login');
             } catch (err) {
-              Alert.alert('Error', err.response?.data?.message || err.message);
+              if (mountedRef.current) showAlert('Error', err.response?.data?.message || err.message);
             }
           },
         },
@@ -164,7 +191,19 @@ const Profile = () => {
     );
   };
 
-  if (loading) {
+  if (isRestoring) {
+    return <View style={styles.center}><ActivityIndicator size="large" color={colors.brand} /></View>;
+  }
+  if (!session) return <Redirect href="/login" />;
+
+  if (loadError?.token === session.token) {
+    return <AuthLoading error={loadError.message} onRetry={() => {
+      const token = session.token;
+      void load(() => mountedRef.current && tokenRef.current === token);
+    }} />;
+  }
+
+  if (loading || loadedToken !== session.token) {
     return (
       <View style={styles.center}>
         <ActivityIndicator size="large" color={colors.brand} />
@@ -185,8 +224,8 @@ const Profile = () => {
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
           <ScrollView contentContainerStyle={styles.editScroll}>
-            <Image
-              source={{ uri: user?.avatar || DEFAULT_AVATAR }}
+            <LocalAvatar
+              uri={user?.avatar}
               style={styles.editAvatar}
             />
             <FormInput
@@ -200,6 +239,7 @@ const Profile = () => {
               value={editForm.email}
               onChangeText={(v) => setEditForm((p) => ({ ...p, email: v }))}
               keyboardType="email-address"
+              editable={user?.role !== 'officer'}
             />
             <FormInput
               label="Phone Number"
@@ -242,8 +282,8 @@ const Profile = () => {
           >
             <Ionicons name="arrow-back" size={24} color={colors.gray900} />
           </TouchableOpacity>
-          <Image
-            source={{ uri: user?.avatar || DEFAULT_AVATAR }}
+          <LocalAvatar
+            uri={user?.avatar}
             style={styles.avatar}
           />
           <Text style={styles.name}>{user?.fullName || 'Passenger'}</Text>

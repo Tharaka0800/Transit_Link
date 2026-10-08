@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -8,7 +8,6 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
-  Alert,
   Dimensions,
   StatusBar,
 } from 'react-native';
@@ -18,6 +17,8 @@ import { router } from 'expo-router';
 import FormInput from '../components/FormInput';
 import Button from '../components/Button';
 import { loginUser, registerUser, saveAuth } from '../services/api';
+import { getLandingRoute } from '../auth/AuthProvider';
+import { showAlert } from '../components/AppAlert';
 import { colors } from '../theme';
 
 const HERO = require('../../assets/login-hero.png');
@@ -28,6 +29,9 @@ const Login = () => {
   const [mode, setMode] = useState('login'); // login | register | forgot
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const submitting = useRef(false);
+  const mounted = useRef(false);
+  const generation = useRef(0);
   const [form, setForm] = useState({
     fullName: '',
     email: '',
@@ -37,66 +41,44 @@ const Login = () => {
 
   const setField = (key, value) => setForm((p) => ({ ...p, [key]: value }));
 
-  const handleLogin = async () => {
-    if (!form.email || !form.password) {
-      Alert.alert('Missing fields', 'Please enter email/phone and password.');
-      return;
-    }
-    setLoading(true);
-    try {
-      const { data } = await loginUser({
-        email: form.email,
-        password: form.password,
-      });
-      await saveAuth(data);
-      router.replace('/(tabs)/home');
-    } catch (err) {
-      Alert.alert('Login failed', err.response?.data?.message || err.message);
-    } finally {
-      setLoading(false);
-    }
+  useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; generation.current += 1; };
+  }, []);
+
+  const changeMode = (nextMode) => {
+    if (submitting.current) return;
+    generation.current += 1;
+    setMode(nextMode);
   };
 
-  const handleRegister = async () => {
-    if (!form.fullName || !form.email || !form.password) {
-      Alert.alert('Missing fields', 'Please fill all required fields.');
+  const handleSubmit = async () => {
+    if (submitting.current) return;
+    const registering = mode === 'register';
+    if (!form.email.trim() || !form.password || (registering && !form.fullName.trim())) {
+      showAlert('Missing fields', registering ? 'Please fill all required fields.' : 'Please enter email/phone and password.');
       return;
     }
+    submitting.current = true;
+    const currentGeneration = ++generation.current;
+    const isCurrent = () => mounted.current && generation.current === currentGeneration;
     setLoading(true);
     try {
-      const { data } = await registerUser({
-        fullName: form.fullName,
-        email: form.email,
-        phone: form.phone,
-        password: form.password,
-      });
+      const { data } = registering
+        ? await registerUser({ fullName: form.fullName.trim(), email: form.email.trim(), phone: form.phone.trim(), password: form.password })
+        : await loginUser({ email: form.email.trim(), password: form.password });
+      if (!isCurrent()) return;
       await saveAuth(data);
-      router.replace('/(tabs)/home');
+      if (isCurrent()) router.replace(getLandingRoute(data));
     } catch (err) {
-      Alert.alert(
-        'Registration failed',
-        err.response?.data?.message || err.message
-      );
+      if (isCurrent()) {
+        showAlert(registering ? 'Registration failed' : 'Login failed', err.response?.data?.message || err.message || 'Unable to access local accounts. Please try again.');
+      }
     } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleForgot = async () => {
-    if (!form.email.trim()) {
-      Alert.alert('Required', 'Enter your email or phone number.');
-      return;
-    }
-    setLoading(true);
-    try {
-      await new Promise((r) => setTimeout(r, 600));
-      Alert.alert(
-        'Reset link sent',
-        `If an account exists for ${form.email}, a reset link has been sent.`
-      );
-      setMode('login');
-    } finally {
-      setLoading(false);
+      if (isCurrent()) {
+        submitting.current = false;
+        setLoading(false);
+      }
     }
   };
 
@@ -104,7 +86,7 @@ const Login = () => {
     return (
       <SafeAreaView style={styles.safe}>
         <View style={styles.forgotWrap}>
-          <TouchableOpacity onPress={() => setMode('login')} style={styles.backBtn}>
+          <TouchableOpacity onPress={() => changeMode('login')} style={styles.backBtn} accessibilityLabel="Back to Login">
             <Ionicons name="arrow-back" size={24} color={colors.gray900} />
           </TouchableOpacity>
 
@@ -114,24 +96,12 @@ const Login = () => {
 
           <Text style={styles.forgotTitle}>Forgot Password?</Text>
           <Text style={styles.forgotSub}>
-            Enter your email or phone number and we'll send you a reset link.
+            Accounts are stored on this device. Email and SMS password recovery are unavailable.
           </Text>
 
-          <FormInput
-            leftIcon="mail-outline"
-            placeholder="Email or Phone Number"
-            value={form.email}
-            onChangeText={(v) => setField('email', v)}
-            keyboardType="email-address"
-          />
-
-          <Button loading={loading} onPress={handleForgot}>
-            Send Reset Link
+          <Button onPress={() => changeMode('login')}>
+            Back to Login
           </Button>
-
-          <TouchableOpacity onPress={() => setMode('login')}>
-            <Text style={styles.link}>Back to Login</Text>
-          </TouchableOpacity>
         </View>
       </SafeAreaView>
     );
@@ -181,6 +151,7 @@ const Login = () => {
                   value={form.fullName}
                   onChangeText={(v) => setField('fullName', v)}
                   autoCapitalize="words"
+                  editable={!loading}
                 />
                 <FormInput
                   leftIcon="call-outline"
@@ -188,6 +159,7 @@ const Login = () => {
                   value={form.phone}
                   onChangeText={(v) => setField('phone', v)}
                   keyboardType="phone-pad"
+                  editable={!loading}
                 />
               </>
             ) : null}
@@ -198,6 +170,8 @@ const Login = () => {
               value={form.email}
               onChangeText={(v) => setField('email', v)}
               keyboardType="email-address"
+              autoCapitalize="none"
+              editable={!loading}
             />
 
             <FormInput
@@ -208,28 +182,20 @@ const Login = () => {
               secureTextEntry={!showPassword}
               rightIcon={showPassword ? 'eye-off-outline' : 'eye-outline'}
               onRightPress={() => setShowPassword((v) => !v)}
+              editable={!loading}
             />
 
             <Button
               loading={loading}
-              onPress={mode === 'login' ? handleLogin : handleRegister}
+              onPress={handleSubmit}
             >
               {mode === 'login' ? 'Login' : 'Register'}
             </Button>
 
             {mode === 'login' ? (
-              <>
-                <Button
-                  variant="secondary"
-                  style={styles.officerButton}
-                  onPress={() => router.replace('/(tabs)/officer-dashboard')}
-                >
-                  Open Officer Dashboard
-                </Button>
-                <TouchableOpacity onPress={() => setMode('forgot')}>
-                  <Text style={styles.link}>Forgot Password?</Text>
-                </TouchableOpacity>
-              </>
+              <TouchableOpacity disabled={loading} onPress={() => changeMode('forgot')}>
+                <Text style={styles.link}>Forgot Password?</Text>
+              </TouchableOpacity>
             ) : null}
 
             <View style={styles.switchRow}>
@@ -239,8 +205,9 @@ const Login = () => {
                   : 'Already have an account? '}
               </Text>
               <TouchableOpacity
+                disabled={loading}
                 onPress={() =>
-                  setMode((m) => (m === 'login' ? 'register' : 'login'))
+                  changeMode(mode === 'login' ? 'register' : 'login')
                 }
               >
                 <Text style={styles.linkInline}>
@@ -325,9 +292,6 @@ const styles = StyleSheet.create({
     textDecorationLine: 'underline',
     fontWeight: '500',
     fontSize: 14,
-  },
-  officerButton: {
-    marginTop: 12,
   },
   switchRow: {
     flexDirection: 'row',

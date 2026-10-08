@@ -2,6 +2,8 @@ import React from 'react';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme';
+import { useAuth } from '../../auth/AuthProvider';
+import AuthLoading from '../../auth/AuthLoading';
 
 type IconName = keyof typeof Ionicons.glyphMap;
 
@@ -17,6 +19,9 @@ const tabIcons: Record<string, { active: IconName; inactive: IconName }> = {
 };
 
 export default function TabLayout() {
+  const { session, loading, error, retry } = useAuth();
+  if (loading || error) return <AuthLoading error={error} onRetry={retry} />;
+  const isOfficer = session?.user.role === 'officer';
   return (
     <Tabs
       initialRouteName="home"
@@ -47,7 +52,7 @@ export default function TabLayout() {
       <Tabs.Screen name="routes" options={{ title: 'Routes' }} />
       <Tabs.Screen name="tickets" options={{ title: 'Tickets' }} />
       <Tabs.Screen name="profile" options={{ title: 'Profile' }} />
-      <Tabs.Screen name="officer-dashboard/index" options={{ title: 'Officer' }} />
+      <Tabs.Screen name="officer-dashboard/index" options={{ title: 'Officer', href: isOfficer ? '/(tabs)/officer-dashboard' : null }} />
     </Tabs>
   );
 }

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -6,7 +6,6 @@ import {
   TextInput,
   TouchableOpacity,
   ScrollView,
-  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -14,7 +13,9 @@ import { router } from 'expo-router';
 import Navbar from '../components/Navbar';
 import FormInput from '../components/FormInput';
 import Button from '../components/Button';
-import { createNotification, getToken } from '../services/api';
+import { createNotification } from '../services/api';
+import { useAuth } from '../auth/AuthProvider';
+import { showAlert } from '../components/AppAlert';
 import { colors } from '../theme';
 
 const supportItems = [
@@ -61,15 +62,29 @@ const faqContent = [
   },
   {
     q: 'How do I reset my password?',
-    a: 'On the Login screen, tap Forgot Password and follow the reset link instructions.',
+    a: 'Password recovery is unavailable in this offline prototype. You can register another passenger account on this device.',
   },
 ];
 
 const HelpSupport = () => {
+  const { session } = useAuth();
+  const tokenRef = useRef(session?.token);
+  tokenRef.current = session?.token;
+  const mountedRef = useRef(true);
+  const reportPending = useRef(false);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
   const [query, setQuery] = useState('');
   const [activePanel, setActivePanel] = useState(null);
   const [issueForm, setIssueForm] = useState({ title: '', message: '' });
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    setIssueForm({ title: '', message: '' });
+    setLoading(false);
+  }, [session?.token]);
 
   const filtered = useMemo(() => {
     if (!query.trim()) return supportItems;
@@ -82,15 +97,18 @@ const HelpSupport = () => {
   }, [query]);
 
   const handleReport = async () => {
-    const token = await getToken();
-    if (!token) {
+    if (!session) {
       router.replace('/login');
       return;
     }
+    if (reportPending.current) return;
     if (!issueForm.title.trim() || !issueForm.message.trim()) {
-      Alert.alert('Required', 'Please fill subject and description.');
+      showAlert('Required', 'Please fill subject and description.');
       return;
     }
+    const token = session.token;
+    const isActive = () => mountedRef.current && tokenRef.current === token;
+    reportPending.current = true;
     setLoading(true);
     try {
       await createNotification({
@@ -98,13 +116,15 @@ const HelpSupport = () => {
         message: issueForm.message,
         type: 'info',
       });
-      Alert.alert('Submitted', 'Your issue has been submitted.');
+      if (!isActive()) return;
+      showAlert('Saved', 'Your issue has been saved on this device.');
       setIssueForm({ title: '', message: '' });
       setActivePanel(null);
     } catch (err) {
-      Alert.alert('Error', err.response?.data?.message || err.message);
+      if (isActive()) showAlert('Error', err.response?.data?.message || err.message);
     } finally {
-      setLoading(false);
+      reportPending.current = false;
+      if (isActive()) setLoading(false);
     }
   };
 

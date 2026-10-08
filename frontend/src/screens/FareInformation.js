@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -14,6 +13,7 @@ import Navbar from '../components/Navbar';
 import FormInput from '../components/FormInput';
 import Button from '../components/Button';
 import { generalFares } from '../data/mockData';
+import { showAlert } from '../components/AppAlert';
 import { colors } from '../theme';
 
 const fareTable = {
@@ -34,7 +34,7 @@ const FareInformation = () => {
 
   const calculateFare = () => {
     if (!from.trim() || !to.trim()) {
-      Alert.alert('Missing fields', 'Please enter both From and To locations.');
+      showAlert('Missing fields', 'Please enter both From and To locations.');
       return;
     }
 
