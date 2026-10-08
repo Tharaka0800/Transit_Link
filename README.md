@@ -1,54 +1,8 @@
 # TransitLink
 
-Expo (React Native) + Node.js/Express module for **TransitLink**, covering authentication, profile management, notifications, help & support, and the Transport Officer Dashboard.
+TransitLink is an Expo SDK 51 / React Native university prototype. Accounts, sessions, profiles, notifications, saved routes, and Transport Officer incidents persist on the device using AsyncStorage. Login and registration require no internet, external database, or running backend.
 
-## Folder Structure
-
-```
-./
-├── frontend/                          # Expo React Native app
-│   ├── src/
-│   │   ├── components/                # Navbar, Button, FormInput, BottomNav
-│   │   ├── screens/                   # Home, Login, Profile, Notifications, HelpSupport
-│   │   ├── app/                       # Expo Router stacks, tabs, and officer screens
-│   │   ├── utils/                     # Local Officer storage and tests
-│   │   ├── services/                  # api.js (Axios + AsyncStorage)
-│   │   └── theme.js
-│   ├── app.json
-│   └── package.json
-├── backend/                           # Node.js REST API
-│   ├── controllers/
-│   ├── models/
-│   ├── routes/
-│   ├── middleware/
-│   ├── config/
-│   ├── server.js
-│   ├── package.json
-│   └── .env
-└── README.md
-```
-
-## Prerequisites
-
-- Node.js 22+
-- MongoDB Atlas or local MongoDB
-- Expo Go / Android emulator / iOS simulator
-
-## Quick Start
-
-### 1. Backend
-
-```bash
-cd backend
-npm install
-npm run dev
-```
-
-The backend serves the existing account and notification features. Configure MongoDB/JWT settings using `backend/.env.example`. Use `npm run seed` for demo accounts when needed; the existing memory-database auto-seeding also remains available. The Officer dashboard can be demonstrated without starting this backend.
-
-Account and notification REST API: `http://localhost:5000`. See [backend setup](backend/README.md).
-
-### 2. Frontend (Expo)
+## Run the app
 
 ```bash
 cd frontend
@@ -56,54 +10,59 @@ npm install
 npx expo start
 ```
 
-Android emulator uses `http://10.0.2.2:5000/api` automatically.
+Press `a` for Android or `w` for web. Use an SDK 51-compatible Expo Go client or development build. Metro supplies the development bundle; after loading it, the app's data operations work offline. A standalone build can launch without Metro.
 
-For an offline Officer demonstration, choose **Open Officer Dashboard** beneath Login. This opens the fifth tab without creating a login session. Officer incidents persist locally on the device using AsyncStorage; no backend connection or API configuration is required.
+## Demo credentials
 
-### Demo accounts
-
-| Role | Email | Password |
-|------|-------|----------|
-| Primary | `tharukee01@gmail.com` | `password123` |
-| Secondary | `passenger.demo@transitlink.lk` | `password123` |
+| Role | Email / username | Password |
+| --- | --- | --- |
+| Passenger | `tharukee01@gmail.com` | `password123` |
+| Passenger | `passenger.demo@transitlink.lk` | `password123` |
 | Admin | `admin@transitlink.lk` | `admin123` |
+| Transport officer | `officer@transitlink.lk` | `OfficerDemo@2026` |
 
-## REST API (CRUD)
+Accounts initialize once when the local database is missing. Registration creates passengers. Officer login opens **SmartBus Dashboard** directly. Guests, passengers, and admins cannot open the Officer tab or Add/Edit Alert route. The login screen has no unauthenticated Officer shortcut.
 
-| Method | Endpoint | Operation |
-|--------|----------|-----------|
-| POST | `/api/users/register` | Create user |
-| POST | `/api/users/login` | Authenticate + JWT |
-| GET | `/api/users/profile` | Read profile |
-| PUT | `/api/users/profile` | Update profile |
-| DELETE | `/api/users/profile` | Delete account |
-| GET | `/api/notifications` | Read notifications |
-| POST | `/api/notifications` | Create notification |
-| DELETE | `/api/notifications/:id` | Dismiss notification |
+## Local persistence and access
 
-## Screens (Milestone prototypes)
+- `frontend/src/services/LocalAppStorage.ts` stores a versioned database at `@transitlink_app_v1`, including users, notifications, saved routes, and the active session.
+- `frontend/src/services/api.js` retains existing service methods and `{ data }` responses while performing local operations. It makes no account or notification network requests.
+- Passwords are salted bcrypt hashes at cost 10, using secure random values from SDK-compatible `expo-crypto`.
+- Sessions restore offline until logout or account deletion. The current account record determines its role; registration and profile forms cannot grant privileged roles.
+- Profile edits, notifications, unread counts, and saved routes survive restarts. Notifications and saved routes are scoped to their user.
+- Account deletion removes its related data and session while preserving Officer incidents. The built-in Officer account's credentials, role, and deletion are protected.
+- Officer CRUD remains in `frontend/src/utils/OfficerStorage.ts`, under `@transit_incidents`. Two samples initialize only when this key is missing. Deleting the last alert preserves an empty list across restarts.
+- Storage operations are serialized. Invalid data and failed reads/writes report errors without overwriting stored contents.
 
-| Screen | Status |
-|--------|--------|
-| Login / Register / Forgot Password | Done |
-| Home | Done |
-| Profile / Edit Profile / Settings | Done |
-| Notifications | Done |
-| Help & Support | Done |
-| My Tickets (Upcoming / Past) | Done |
-| Favourite Routes | Done (Routes tab) |
-| Fare Information (Calculator / General) | Done |
-| Transport Officer Dashboard / Add & Edit Alert | Done (Officer tab, local AsyncStorage CRUD) |
+Obsolete backend sessions are discarded. Users registered in the earlier backend version must register locally again; Officer incidents are preserved. Data belongs to this device or browser installation and does not synchronize between devices. Clearing application data removes the database. Role checks restrict the prototype's normal app flow; AsyncStorage cannot protect against device-storage tampering.
 
-## Design
+## Screens and styling
 
-- Brand: TransitLink
-- Primary: Blue `#2563EB`
-- Styling: React Native `StyleSheet.create`
-- Navigation: Expo Router + bottom tabs (Home, Routes, Tickets, Profile, Officer)
-- Session: AsyncStorage for JWT
-- Officer incidents: AsyncStorage at `@transit_incidents`, newest first, refreshed when the tab regains focus
-- Initialization: two sample incidents are saved only when the storage key is missing; deleting the last incident preserves an empty list across restarts
-- Officer data model and all four CRUD operations: `frontend/src/utils/OfficerStorage.ts`
+Expo Router controls login, supporting screens, and Home, Routes, Tickets, Profile, and the conditional Officer tab. The alert form opens above the tabs. Existing theme tokens, Navbar, FormInput, Button, typography, padding, and cards remain the styling source.
 
-See [frontend setup and validation](frontend/README.md) for the officer CRUD demonstration and check commands. The project remains on Expo SDK 51.
+Officer CRUD provides Read, Create, Update, and Delete (**Resolve**). Its metric values are static prototype values; Delay Hotspots and Rerouting are informational. Password recovery is unavailable in this local prototype. Issue reports are saved locally rather than sent to a support service.
+
+## Validation
+
+```bash
+cd frontend
+npm run typecheck
+npm test
+npx expo install --check
+npx expo export --platform all --output-dir dist
+```
+
+See [frontend setup and offline checks](frontend/README.md) for demonstration steps and coverage.
+
+## Repository layout
+
+| Directory | Purpose |
+| --- | --- |
+| `frontend/src/app` | Expo Router stacks, tabs, and Officer routes |
+| `frontend/src/screens` | Passenger/account/support screens |
+| `frontend/src/components` | Shared visual controls |
+| `frontend/src/services` | Local account, session, notification, and route persistence |
+| `frontend/src/utils` | Local Officer incident storage |
+| `backend` | Retained Express/MongoDB/JWT reference implementation, unused by the current frontend |
+
+The backend does not need to run. Its original setup and endpoints remain documented in [backend/README.md](backend/README.md).

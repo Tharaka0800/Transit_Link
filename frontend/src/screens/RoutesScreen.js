@@ -1,32 +1,91 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import Navbar from '../components/Navbar';
-import { favouriteRoutes as initialRoutes } from '../data/mockData';
+import { getSavedRoutes, addSampleSavedRoute, toggleSavedRoute } from '../services/api';
+import { useAuth } from '../auth/AuthProvider';
+import { showAlert } from '../components/AppAlert';
 import { colors } from '../theme';
 
 const RoutesScreen = () => {
-  const [routes, setRoutes] = useState(initialRoutes);
+  const { session, isRestoring } = useAuth();
+  const owner = session?.user._id || 'guest';
+  const identity = session?.token || 'guest';
+  const identityRef = useRef(identity);
+  identityRef.current = identity;
+  const mountedRef = useRef(true);
+  const pendingRef = useRef(new Set());
+  const [saved, setSaved] = useState({ owner: null, routes: [] });
+  const [loading, setLoading] = useState(true);
+  const routes = saved.owner === owner ? saved.routes : [];
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
 
-  const toggleFavorite = (id) => {
-    setRoutes((prev) =>
-      prev.map((r) =>
-        r.id === id ? { ...r, favorite: !r.favorite, muted: r.favorite } : r
-      )
-    );
+  useFocusEffect(useCallback(() => {
+    if (isRestoring) return;
+    let active = true;
+    setLoading(true);
+    const load = async () => {
+      try {
+        const { data } = await getSavedRoutes();
+        if (active && identityRef.current === identity) setSaved({ owner, routes: data });
+      } catch (err) {
+        if (active && identityRef.current === identity) {
+          showAlert('Error', err.response?.data?.message || err.message);
+        }
+      } finally {
+        if (active && identityRef.current === identity) setLoading(false);
+      }
+    };
+    void load();
+    return () => { active = false; };
+  }, [identity, owner, isRestoring]));
+
+  const toggleFavorite = async (id) => {
+    if (pendingRef.current.has(id)) return;
+    pendingRef.current.add(id);
+    try {
+      const { data } = await toggleSavedRoute(id);
+      if (!mountedRef.current || identityRef.current !== identity) return;
+      setSaved((prev) => ({ owner, routes: prev.routes.map((route) => route.id === id ? data : route) }));
+    } catch (err) {
+      if (mountedRef.current && identityRef.current === identity) {
+        showAlert('Error', err.response?.data?.message || err.message);
+      }
+    } finally {
+      pendingRef.current.delete(id);
+    }
+  };
+
+  const addSample = async () => {
+    if (pendingRef.current.has('add')) return;
+    pendingRef.current.add('add');
+    try {
+      const { data } = await addSampleSavedRoute();
+      if (!mountedRef.current || identityRef.current !== identity) return;
+      setSaved((prev) => ({ owner, routes: [data, ...prev.routes] }));
+    } catch (err) {
+      if (mountedRef.current && identityRef.current === identity) {
+        showAlert('Error', err.response?.data?.message || err.message);
+      }
+    } finally {
+      pendingRef.current.delete('add');
+    }
   };
 
   const handleAdd = () => {
-    Alert.alert(
+    showAlert(
       'Add Favourite Route',
       'Create a new saved route or open the fare calculator.',
       [
@@ -38,18 +97,7 @@ const RoutesScreen = () => {
         {
           text: 'Add Sample',
           onPress: () => {
-            setRoutes((prev) => [
-              {
-                id: `r${Date.now()}`,
-                from: 'Pettah',
-                to: 'Moratuwa',
-                mode: 'Bus',
-                duration: '55m',
-                favorite: true,
-                muted: false,
-              },
-              ...prev,
-            ]);
+            if (identityRef.current === identity) void addSample();
           },
         },
       ]
@@ -83,6 +131,7 @@ const RoutesScreen = () => {
       </TouchableOpacity>
 
       <ScrollView contentContainerStyle={styles.list}>
+        {(loading || isRestoring) && <ActivityIndicator color={colors.brand} style={{ marginVertical: 16 }} />}
         {routes.map((route) => {
           const isTrain = route.mode === 'Train';
           return (
@@ -91,7 +140,7 @@ const RoutesScreen = () => {
               style={styles.card}
               activeOpacity={0.85}
               onPress={() =>
-                Alert.alert(
+                showAlert(
                   `${route.from} → ${route.to}`,
                   `${route.mode} · ${route.duration}`
                 )

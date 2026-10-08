@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -13,6 +12,7 @@ import { router } from 'expo-router';
 import Navbar from '../components/Navbar';
 import Button from '../components/Button';
 import { upcomingTickets, pastTickets } from '../data/mockData';
+import { showAlert } from '../components/AppAlert';
 import { colors } from '../theme';
 
 const TicketCard = ({ ticket, onView }) => {
@@ -80,7 +80,7 @@ const TicketsScreen = () => {
   const list = tab === 'upcoming' ? upcomingTickets : pastTickets;
 
   const handleView = (ticket) => {
-    Alert.alert(
+    showAlert(
       `${ticket.mode} Ticket`,
       `${ticket.from} → ${ticket.to}\n${ticket.date} · ${ticket.time}\nID: ${ticket.id}\nStatus: ${ticket.status}`,
       [{ text: 'OK' }]

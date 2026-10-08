@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React from 'react';
 import {
   View,
   Text,
@@ -8,26 +8,15 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { router, useFocusEffect } from 'expo-router';
+import { router } from 'expo-router';
 import Button from '../components/Button';
-import { getStoredUser, getToken } from '../services/api';
+import { useAuth } from '../auth/AuthProvider';
 import { colors } from '../theme';
 
 const Home = () => {
-  const [user, setUser] = useState(null);
-  const [loggedIn, setLoggedIn] = useState(false);
-
-  useFocusEffect(
-    useCallback(() => {
-      const load = async () => {
-        const token = await getToken();
-        const stored = await getStoredUser();
-        setLoggedIn(Boolean(token));
-        setUser(stored);
-      };
-      load();
-    }, [])
-  );
+  const { session } = useAuth();
+  const user = session?.user;
+  const loggedIn = Boolean(session);
 
   const firstName = user?.fullName?.split(' ')[0] || 'Passenger';
 

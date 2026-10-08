@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -6,20 +6,21 @@ import {
   FlatList,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { router, useFocusEffect } from 'expo-router';
+import { Redirect, router, useFocusEffect } from 'expo-router';
 import Navbar from '../components/Navbar';
 import Button from '../components/Button';
+import { useAuth } from '../auth/AuthProvider';
+import AuthLoading from '../auth/AuthLoading';
 import {
   getNotifications,
   deleteNotification,
   markNotificationRead,
   createNotification,
-  getToken,
 } from '../services/api';
+import { showAlert } from '../components/AppAlert';
 import { colors } from '../theme';
 
 const filters = [
@@ -58,16 +59,35 @@ const formatTime = (dateStr) => {
 };
 
 const Notifications = () => {
+  const { session, isRestoring } = useAuth();
+  const tokenRef = useRef(session?.token);
+  tokenRef.current = session?.token;
+  const mountedRef = useRef(true);
+  const requestRef = useRef(0);
+  const createPending = useRef(false);
+  const pendingIds = useRef(new Set());
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
   const [activeFilter, setActiveFilter] = useState('all');
   const [notifications, setNotifications] = useState([]);
+  const [loadedToken, setLoadedToken] = useState(null);
+  const [loadError, setLoadError] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
 
   const loadNotifications = useCallback(async (filter = 'all') => {
+    if (!session) return;
+    const request = ++requestRef.current;
+    const token = session.token;
+    const isActive = () => mountedRef.current && tokenRef.current === token && requestRef.current === request;
     try {
       setLoading(true);
+      setLoadError(null);
       const { data } = await getNotifications();
+      if (!isActive()) return;
       let list = data.notifications || [];
       if (filter === 'service') {
         list = list.filter((n) => n.type === 'service' || n.type === 'delay');
@@ -75,52 +95,68 @@ const Notifications = () => {
         list = list.filter((n) => n.type === 'ticket');
       }
       setNotifications(list);
+      setLoadedToken(token);
     } catch (err) {
-      Alert.alert('Error', err.response?.data?.message || 'Failed to load');
+      if (isActive()) setLoadError({ token, message: err.response?.data?.message || err.message || 'Failed to load' });
     } finally {
-      setLoading(false);
+      if (isActive()) setLoading(false);
     }
-  }, []);
+  }, [session?.token]);
 
   useFocusEffect(
     useCallback(() => {
-      const init = async () => {
-        const token = await getToken();
-        if (!token) {
-          router.replace('/login');
-          return;
-        }
-        loadNotifications('all');
-      };
-      init();
-    }, [loadNotifications])
+      if (isRestoring || !session) return;
+      setSelectedId(null);
+      setActiveFilter('all');
+      void loadNotifications('all');
+      return () => { requestRef.current += 1; };
+    }, [loadNotifications, isRestoring, session?.token])
   );
 
   const handleOpen = async (item) => {
+    if (!session) return;
+    const token = session.token;
     setSelectedId((prev) => (prev === item._id ? null : item._id));
-    if (!item.isRead) {
+    if (!item.isRead && !pendingIds.current.has(item._id)) {
+      pendingIds.current.add(item._id);
       try {
         await markNotificationRead(item._id);
+        if (!mountedRef.current || tokenRef.current !== token) return;
         setNotifications((prev) =>
           prev.map((n) => (n._id === item._id ? { ...n, isRead: true } : n))
         );
-      } catch {
-        /* non-blocking */
+      } catch (err) {
+        if (mountedRef.current && tokenRef.current === token) {
+          showAlert('Error', err.response?.data?.message || err.message);
+        }
+      } finally {
+        pendingIds.current.delete(item._id);
       }
     }
   };
 
   const handleDismiss = async (id) => {
+    if (!session || pendingIds.current.has(id)) return;
+    const token = session.token;
+    pendingIds.current.add(id);
     try {
       await deleteNotification(id);
+      if (!mountedRef.current || tokenRef.current !== token) return;
       setNotifications((prev) => prev.filter((n) => n._id !== id));
       setSelectedId(null);
     } catch (err) {
-      Alert.alert('Error', err.response?.data?.message || 'Dismiss failed');
+      if (mountedRef.current && tokenRef.current === token) {
+        showAlert('Error', err.response?.data?.message || err.message || 'Dismiss failed');
+      }
+    } finally {
+      pendingIds.current.delete(id);
     }
   };
 
   const handleCreateDemo = async () => {
+    if (!session || createPending.current) return;
+    const token = session.token;
+    createPending.current = true;
     setActionLoading(true);
     try {
       const { data } = await createNotification({
@@ -129,11 +165,15 @@ const Notifications = () => {
           'Route 138 is now running on schedule. Thank you for your patience.',
         type: 'service',
       });
+      if (!mountedRef.current || tokenRef.current !== token) return;
       setNotifications((prev) => [data, ...prev]);
     } catch (err) {
-      Alert.alert('Error', err.response?.data?.message || 'Create failed');
+      if (mountedRef.current && tokenRef.current === token) {
+        showAlert('Error', err.response?.data?.message || err.message || 'Create failed');
+      }
     } finally {
-      setActionLoading(false);
+      createPending.current = false;
+      if (mountedRef.current && tokenRef.current === token) setActionLoading(false);
     }
   };
 
@@ -195,6 +235,14 @@ const Notifications = () => {
     );
   };
 
+  if (isRestoring) {
+    return <View style={styles.center}><ActivityIndicator size="large" color={colors.brand} /></View>;
+  }
+  if (!session) return <Redirect href="/login" />;
+  if (loadError?.token === session.token) {
+    return <AuthLoading error={loadError.message} onRetry={() => { void loadNotifications(activeFilter); }} />;
+  }
+
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <Navbar
@@ -227,7 +275,7 @@ const Notifications = () => {
         ))}
       </View>
 
-      {loading ? (
+      {loading || loadedToken !== session.token ? (
         <View style={styles.center}>
           <ActivityIndicator size="large" color={colors.brand} />
         </View>

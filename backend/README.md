@@ -1,6 +1,6 @@
 # TransitLink account and notification backend
 
-This Express server supports the existing login, registration, profile, and notification features using MongoDB and JWT authentication. The Transport Officer dashboard uses AsyncStorage on the device and does not connect to this server.
+This retained Express server implements the earlier account and notification features using MongoDB and JWT authentication. It is reference code: the current frontend stores accounts, sessions, profiles, notifications, saved routes, and Officer incidents locally using AsyncStorage. **This backend does not need to run for the current app.**
 
 ## Setup
 
@@ -32,4 +32,4 @@ Run `npm run seed` to reset and repopulate the configured demo database. This co
 
 Profile and notification routes require `Authorization: Bearer <login token>`. Their controllers, models, and middleware retain the existing behavior.
 
-The frontend backend URL setting applies to these account and notification routes only. Use **Open Officer Dashboard** on the login screen to demonstrate Officer CRUD without starting a backend or signing in. Officer validation commands are documented in [frontend/README.md](../frontend/README.md).
+These endpoints are unused by the current frontend, which has no backend URL setting. Sign in locally with `officer@transitlink.lk` / `OfficerDemo@2026` to open the Officer dashboard. All CRUD operations work offline. Setup, migration, and validation commands are documented in [frontend/README.md](../frontend/README.md).

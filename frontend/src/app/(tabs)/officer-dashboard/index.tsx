@@ -7,6 +7,7 @@ import Navbar from '../../../components/Navbar';
 import Button from '../../../components/Button';
 import { colors } from '../../../theme';
 import { deleteIncident, getIncidents, IncidentAlert } from '../../../utils/OfficerStorage';
+import OfficerGuard from '../../../auth/OfficerGuard';
 
 const metrics = [
   { label: 'Active Buses', value: '150', icon: 'bus-outline' },
@@ -24,6 +25,10 @@ const statusColors: Record<IncidentAlert['status'], { color: string; backgroundC
 };
 
 export default function OfficerDashboard() {
+  return <OfficerGuard><OfficerDashboardContent /></OfficerGuard>;
+}
+
+function OfficerDashboardContent() {
   const [incidents, setIncidents] = useState<IncidentAlert[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
