@@ -16,6 +16,9 @@ const ticketSchema = new mongoose.Schema(
     },
     passengerNumber: { type: Number, default: 1, min: 1, max: 10 },
     passengerCount: { type: Number, default: 1, min: 1, max: 10 },
+    tripId: { type: mongoose.Schema.Types.ObjectId, ref: 'BusTrip' },
+    seatLabel: String,
+    busName: String,
     journeyId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'TicketJourney',

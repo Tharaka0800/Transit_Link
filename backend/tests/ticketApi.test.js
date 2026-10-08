@@ -11,6 +11,7 @@ import User from '../models/User.js';
 import Ticket from '../models/Ticket.js';
 import TicketJourney from '../models/TicketJourney.js';
 import TicketQuote from '../models/TicketQuote.js';
+import BusTrip from '../models/BusTrip.js';
 import ticketRoutes from '../routes/ticketRoutes.js';
 import { errorHandler, notFound } from '../middleware/errorMiddleware.js';
 import loadTicketCatalogue from '../config/ticketCatalogue.js';
@@ -81,7 +82,7 @@ before(
     ]);
     journey = await TicketJourney.create({
       code: 'TEST-BUS',
-      mode: 'Bus',
+      mode: 'Train',
       from: 'Test Origin',
       to: 'Test Destination',
       durationMinutes: 60,
@@ -395,4 +396,62 @@ test('group fare is server calculated and concurrent retries issue one QR per pa
   assert.equal(recovered.body.tickets[0].id, tickets[0].id);
   assert.equal(recovered.body.tickets[1].id, tickets[1].id);
   assert.equal(await Ticket.countDocuments({quoteId: q.id}), 3);
+});
+
+
+test('bus seat quotes atomically hold seats, derive passenger count, and prevent double booking', async () => {
+  const bus = await TicketJourney.create({code: 'SEAT-TEST', mode: 'Bus', from: 'A', to: 'B', durationMinutes: 60, validityMinutes: 120,
+    ticketTypes: [{code: 'standard', label: 'Standard', fareMinor: 20000}]});
+  assert.equal((await request('/journeys/' + bus.id + '/trips')).status, 401);
+  const listed = await request('/journeys/' + bus.id + '/trips', passenger);
+  assert.equal(listed.status, 200);
+  const trip = listed.body.trips[0];
+  assert.equal(trip.availableSeats, 20);
+  assert.equal(trip.seats.length, 20);
+  const payload = {journeyId: bus.id, ticketType: 'standard', tripId: trip.id, seats: ['01A', '01B'], passengerCount: 10, departureAt: 'now'};
+  for (const seats of [[], ['01A', '01A'], ['99Z'], Array(11).fill('01A')]) {
+    assert.equal((await request('/quotes', passenger, {...payload, seats})).status, 400);
+  }
+  const competing = await Promise.all([request('/quotes', passenger, payload), request('/quotes', other, payload)]);
+  assert.deepEqual(competing.map(result => result.status).sort(), [201, 409]);
+  const winner = competing.findIndex(result => result.status === 201);
+  const owner = winner === 0 ? passenger : other;
+  const q = competing[winner].body.quote;
+  assert.equal(q.passengerCount, 2);
+  assert.equal(q.totalFareMinor, 40000);
+  assert.equal(q.validFrom, trip.departureAt);
+  const held = (await request('/journeys/' + bus.id + '/trips', owner)).body.trips.find(item => item.id === trip.id);
+  assert.equal(held.availableSeats, 18);
+  assert.equal(held.seats[0].status, 'reserved');
+  const results = await Promise.all([request('/purchase', owner, {quoteId: q.id}), request('/purchase', owner, {quoteId: q.id})]);
+  assert.ok(results.every(result => [200, 201].includes(result.status)));
+  assert.deepEqual(results[0].body.tickets.map(ticket => ticket.seatLabel), ['01A', '01B']);
+  assert.equal(await Ticket.countDocuments({quoteId: q.id}), 2);
+  assert.equal((await request('/quotes/' + q.id + '/release', owner, {})).status, 409);
+  assert.equal((await request('/quotes', passenger, payload)).status, 409);
+  const nextTrip = listed.body.trips[1];
+  assert.equal((await request('/quotes', passenger, {...payload, tripId: nextTrip.id})).status, 201);
+  const occupied = (await request('/journeys/' + bus.id + '/trips', passenger)).body.trips.find(item => item.id === trip.id);
+  assert.equal(occupied.seats[0].status, 'occupied');
+});
+
+test('expired and released seat holds are reusable and cannot confirm an old quote', async () => {
+  const bus = await TicketJourney.findOne({code: 'SEAT-TEST'});
+  const trip = (await request('/journeys/' + bus.id + '/trips', passenger)).body.trips[0];
+  const payload = {journeyId: bus.id, ticketType: 'standard', tripId: trip.id, seats: ['02A', '02B']};
+  const q = (await request('/quotes', passenger, payload)).body.quote;
+  await TicketQuote.updateOne({ _id: q.id }, { expiresAt: new Date(Date.now() - 1000) });
+  assert.equal((await request('/purchase', passenger, {quoteId: q.id})).status, 409);
+  assert.equal((await request('/quotes/' + q.id + '/release', other, {})).status, 404);
+  assert.equal((await request('/quotes/' + q.id + '/release', passenger, {})).status, 200);
+  assert.equal((await request('/purchase', passenger, {quoteId: q.id})).status, 409);
+  const replacement = (await request('/quotes', other, payload)).body.quote;
+  await BusTrip.updateOne({_id: trip.id}, {$set: {'seats.$[held].heldUntil': new Date(Date.now() - 1000)}},
+    {arrayFilters: [{'held.quoteId': new mongoose.Types.ObjectId(replacement.id)}]});
+  assert.equal((await request('/purchase', other, {quoteId: replacement.id})).status, 409);
+  assert.equal((await request('/quotes', passenger, payload)).status, 201);
+  // A group containing an occupied seat must not partially hold its free seat.
+  assert.equal((await request('/quotes', passenger, {...payload, seats: ['01A', '03A']})).status, 409);
+  const refreshed = (await request('/journeys/' + bus.id + '/trips', passenger)).body.trips.find(item => item.id === trip.id);
+  assert.equal(refreshed.seats.find(seat => seat.label === '03A').status, 'available');
 });

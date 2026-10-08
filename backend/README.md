@@ -50,4 +50,12 @@ With `USE_MEMORY_DB=true`, this catalogue loads automatically when the backend s
 
 Fare quotes accept an integer `passengerCount` from 1 to 10 (default 1). `fareMinor` is the fare per passenger; `totalFareMinor` is calculated by the server. Confirmation returns a `tickets` array with an independent reference and QR for each passenger, plus the first `ticket` for compatibility. Each ticket includes its booking ID and passenger number. All tickets are owned by the booking account; companion names and age-based fares are not collected yet.
 
-Restart the backend after installing this change. Startup preserves existing tickets and replaces the unique quote index with a unique quote/passenger index. Retries reuse the same quote, recover interrupted issuance, and avoid duplicate tickets. Payment remains a university demo and does not reserve seats.
+Restart the backend after installing this change. Startup preserves existing tickets and replaces the unique quote index with a unique quote/passenger index. Retries reuse the same quote, recover interrupted issuance, and avoid duplicate tickets. Payment remains a university demo.
+
+## Bus seat selection
+
+`GET /api/tickets/journeys/:journeyId/trips` returns bus departures with live seat status and availability counts. The demo has 20 seats in five rows (A/B, aisle, C/D), and sample departures at 08:00, 12:00, 16:00, and 20:00 Asia/Colombo time over the next seven days. These are simulated services, not operator timetables. Trip records are created once per journey/departure and persisted in MongoDB.
+
+Bus fare quotes require a `tripId` and a `seats` array with 1–10 distinct labels. The server derives passenger count from the seats, uses the trip departure time, and holds the entire selection atomically until quote expiry (up to five minutes). Occupied seats and unexpired holds cannot be selected by another booking. Expired holds become available automatically without waiting for cleanup.
+
+Confirmation atomically assigns the held seats to the booking before issuing one ticket/QR per seat. Safe retries recover interrupted issuance. `POST /api/tickets/quotes/:quoteId/release` releases the signed-in user's unconfirmed hold when editing; it cannot release booked seats. Ticket responses include `seatLabel`, `busName`, and `tripId`. Train booking retains the passenger counter and its existing travel-time selection.

@@ -1,12 +1,14 @@
 import React from 'react';
 import { Text, TextInput, TouchableOpacity } from 'react-native';
 import JourneyDateTimePicker from '../components/ticketing/JourneyDateTimePicker';
+import BusSeatPicker from '../components/ticketing/BusSeatPicker';
 import { act, create, ReactTestRenderer } from 'react-test-renderer';
 import { router } from 'expo-router';
 import TicketPurchaseScreen from '../screens/TicketPurchaseScreen';
 import { getToken, getStoredUser } from '../services/api';
 import {
   loadJourneys,
+  releaseSeatHold,
   quoteJourney,
   purchaseQuote,
   Journey,
@@ -31,7 +33,9 @@ jest.mock('../services/ticketService', () => ({
   loadJourneys: jest.fn(),
   quoteJourney: jest.fn(),
   purchaseQuote: jest.fn(),
+  releaseSeatHold: jest.fn(),
 }));
+jest.mock('../components/ticketing/BusSeatPicker', () => ({ __esModule: true, default: () => null }));
 jest.mock('@expo/vector-icons', () => ({ Ionicons: () => null }));
 jest.mock('react-native-safe-area-context', () => ({
   SafeAreaView: require('react-native').View,
@@ -42,7 +46,7 @@ const journey: Journey = {
   code: 'TEST',
   from: 'Origin',
   to: 'Destination',
-  mode: 'Bus',
+  mode: 'Train',
   durationMinutes: 60,
   validityMinutes: 120,
   ticketTypes: [{ code: 'standard', label: 'Standard', fareMinor: 12500 }],
@@ -90,6 +94,7 @@ async function renderJourney() {
   await act(async () => {
     screen = create(<TicketPurchaseScreen />);
   });
+  act(() => { screen.root.findAllByType(TouchableOpacity).find(n => n.findAllByType(Text).some(t => t.props.children === 'Train'))!.props.onPress(); });
   // Select the journey card rather than a transport radio.
   act(() => {
     screen.root
@@ -136,7 +141,7 @@ test('search matches both endpoints regardless of word order, case or extra spac
 test('shows server fare for review and issues only after explicit confirmation', async () => {
   await renderJourney();
   await press('Review ticket');
-  expect(quoteJourney).toHaveBeenCalledWith(journey.id, 'standard', 'now', 1);
+  expect(quoteJourney).toHaveBeenCalledWith(journey.id, 'standard', 'now', 1, undefined);
   expect(content()).toContain('LKR 125.00');
   expect(content()).toContain('No payment is collected');
   expect(purchaseQuote).not.toHaveBeenCalled();
@@ -226,11 +231,32 @@ test('passenger count updates the total, enforces limits, and is sent for fare r
   await press('Add passenger');
   expect(content()).toContain('LKR 250.00');
   await press('Review ticket');
-  expect(quoteJourney).toHaveBeenCalledWith(journey.id, 'standard', 'now', 2);
+  expect(quoteJourney).toHaveBeenCalledWith(journey.id, 'standard', 'now', 2, undefined);
   await press('Edit journey');
   for (let i = 2; i < 10; i++) await press('Add passenger');
   expect(button('Add passenger').props.disabled).toBe(true);
   expect(content()).toContain('LKR 1,250.00');
   await press('Remove passenger');
   expect(button('Add passenger').props.disabled).toBe(false);
+});
+
+
+test('bus booking derives count from seats, reviews the selected departure, and releases holds for editing', async () => {
+  jest.mocked(loadJourneys).mockResolvedValue([{...journey, mode: 'Bus'}]);
+  const trip = {id: 'trip-1', busName: 'Bus 01', departureAt: new Date(Date.now() + 3600000).toISOString(), availableSeats: 20, seats: []};
+  jest.mocked(quoteJourney).mockResolvedValue({...quote, tripId: trip.id, seats: ['04A', '04B'], busName: trip.busName, passengerCount: 2, totalFareMinor: 25000});
+  jest.mocked(releaseSeatHold).mockResolvedValue(undefined);
+  await act(async () => { screen = create(<TicketPurchaseScreen />); });
+  act(() => screen.root.findAllByType(TouchableOpacity).find(n => n.findAllByType(Text).some(t => t.props.children === 'TEST'))!.props.onPress());
+  expect(button('Review ticket').props.disabled).toBe(true);
+  await press('Choose bus & seats');
+  act(() => screen.root.findByType(BusSeatPicker).props.onSelect({trip, seats: ['04A', '04B']}));
+  expect(content()).toContain('LKR 250.00');
+  expect(button('Review ticket').props.disabled).toBe(false);
+  await press('Review ticket');
+  expect(quoteJourney).toHaveBeenCalledWith(journey.id, 'standard', 'now', 2, {tripId: trip.id, seats: ['04A', '04B']});
+  expect(content()).toContain('04A, 04B');
+  await press('Edit journey');
+  expect(releaseSeatHold).toHaveBeenCalledWith(quote.id);
+  expect(content()).toContain('Change seats');
 });

@@ -1,6 +1,8 @@
 import Ticket from '../models/Ticket.js';
 import TicketJourney from '../models/TicketJourney.js';
 import TicketQuote from '../models/TicketQuote.js';
+import BusTrip from '../models/BusTrip.js';
+import { seatLabels, holdSeats, confirmSeats } from '../services/busSeatService.js';
 import {
   ticketStatus,
   ticketView,
@@ -45,7 +47,15 @@ export const getJourneys = async (req, res, next) => {
 
 export const createQuote = async (req, res, next) => {
   try {
-    const { journeyId, ticketType, departureAt, passengerCount = 1 } = req.body;
+    const { journeyId, ticketType, departureAt, tripId, seats } = req.body;
+    let passengerCount = req.body.passengerCount === undefined ? 1 : req.body.passengerCount;
+    if (seats !== undefined) {
+      if (!Array.isArray(seats) || !seats.length || seats.length > 10 ||
+          seats.some(seat => typeof seat !== 'string' || !seatLabels.includes(seat)) ||
+          new Set(seats).size !== seats.length)
+        fail(res, 400, 'Choose 1 to 10 different available seats.');
+      passengerCount = seats.length;
+    }
     if (!Number.isInteger(passengerCount) || passengerCount < 1 || passengerCount > 10)
       fail(res, 400, 'Choose between 1 and 10 passengers.');
     if (!validId(journeyId)) fail(res, 400, 'Choose an available journey.');
@@ -54,12 +64,23 @@ export const createQuote = async (req, res, next) => {
       active: true,
     });
     if (!journey) fail(res, 404, 'This journey is no longer available.');
+    let trip;
+    if (journey.mode === 'Bus') {
+      if (!validId(tripId) || !Array.isArray(seats) || !seats.length)
+        fail(res, 400, 'Choose a bus departure and your seats.');
+      trip = await BusTrip.findOne({ _id: tripId, journeyId, departureAt: { $gt: new Date() } });
+      if (!trip) fail(res, 404, 'This bus departure is no longer available.');
+      if (seats.some(label => !trip.seats.some(seat => seat.label === label)))
+        fail(res, 400, 'Choose seats from this bus.');
+    } else if (tripId || seats !== undefined) {
+      fail(res, 400, 'Seat selection is currently available for buses only.');
+    }
     const type = journey.ticketTypes.find((t) => t.code === ticketType);
     if (!type || !Number.isSafeInteger(type.fareMinor) || type.fareMinor < 1)
       fail(res, 400, 'Choose an available ticket type.');
     const now = new Date();
-    const travelNow = departureAt === 'now';
-    const validFrom = travelNow
+    const travelNow = !trip && departureAt === 'now';
+    const validFrom = trip ? trip.departureAt : travelNow
       ? now
       : typeof departureAt === 'string'
         ? new Date(departureAt)
@@ -85,6 +106,7 @@ export const createQuote = async (req, res, next) => {
       ticketTypeLabel: type.label,
       fareMinor: type.fareMinor,
       passengerCount,
+      ...(trip ? { tripId: trip._id, busName: trip.busName, seats } : {}),
       validFrom,
       validUntil: new Date(
         validFrom.getTime() + journey.validityMinutes * 60000
@@ -98,6 +120,10 @@ export const createQuote = async (req, res, next) => {
           : Math.min(now.getTime() + 5 * 60000, validFrom.getTime())
       ),
     });
+    if (trip && !(await holdSeats(trip._id, seats, quote._id, quote.expiresAt))) {
+      await TicketQuote.deleteOne({ _id: quote._id });
+      fail(res, 409, 'Some seats were just taken. Refresh the seat map and choose again.');
+    }
     res
       .status(201)
       .json({
@@ -109,6 +135,9 @@ export const createQuote = async (req, res, next) => {
           fareMinor: quote.fareMinor,
           passengerCount: quote.passengerCount,
           totalFareMinor: quote.fareMinor * quote.passengerCount,
+          seats: quote.seats,
+          tripId: quote.tripId ? String(quote.tripId) : undefined,
+          busName: quote.busName,
           currency: 'LKR',
           validFrom: quote.validFrom,
           validUntil: quote.validUntil,
@@ -139,6 +168,18 @@ export const purchaseTicket = async (req, res, next) => {
       totalFareMinor: quote.fareMinor * count,
     });
     if (existing.length === count) return respond(existing, 200);
+    if (quote.tripId) {
+      if (!quote.purchaseStartedAt && !(await TicketJourney.exists({ _id: quote.journeyId, active: true })))
+        fail(res, 409, 'This journey is no longer available.');
+      if (!(await confirmSeats(quote)))
+        fail(res, 409, 'Your seat hold expired. Choose your seats again.');
+      // A completed atomic seat claim can recover ticket issuance after a timeout.
+      if (!quote.purchaseStartedAt) {
+        quote = await TicketQuote.findOneAndUpdate(
+          { _id: quote._id }, { $set: { purchaseStartedAt: new Date() } }, { new: true }
+        );
+      }
+    }
     if (!quote.purchaseStartedAt) {
       if (quote.expiresAt <= new Date())
         fail(res, 409, 'Your fare quote expired. Review your journey again.');
@@ -168,6 +209,10 @@ export const purchaseTicket = async (req, res, next) => {
           ticketType: quote.ticketType,
           ticketTypeLabel: quote.ticketTypeLabel,
           fareMinor: quote.fareMinor,
+          ...(quote.tripId ? {
+            tripId: quote.tripId, busName: quote.busName,
+            seatLabel: quote.seats[passengerNumber - 1],
+          } : {}),
           validFrom: quote.validFrom,
           validUntil: quote.validUntil,
         } }, { upsert: true, runValidators: true });

@@ -16,6 +16,7 @@ import { router } from 'expo-router';
 import Navbar from '../components/Navbar';
 import Button from '../components/Button';
 import JourneyDateTimePicker from '../components/ticketing/JourneyDateTimePicker';
+import BusSeatPicker from '../components/ticketing/BusSeatPicker';
 import { getStoredUser, getToken } from '../services/api';
 import {
   Journey,
@@ -25,6 +26,8 @@ import {
   purchaseQuote,
   ticketError,
   isSessionError,
+  BusTrip,
+  releaseSeatHold,
 } from '../services/ticketService';
 import {
   defaultDeparture,
@@ -43,6 +46,8 @@ export default function TicketPurchaseScreen() {
   const [journeyId, setJourneyId] = useState('');
   const [type, setType] = useState('');
   const [passengerCount, setPassengerCount] = useState(1);
+  const [seatSelection, setSeatSelection] = useState<{ trip: BusTrip; seats: string[] } | null>(null);
+  const [showSeats, setShowSeats] = useState(false);
   const [departure, setDeparture] = useState(defaultDeparture);
   const [travelNow, setTravelNow] = useState(true);
   const [quote, setQuote] = useState<Quote | null>(null);
@@ -100,6 +105,7 @@ export default function TicketPurchaseScreen() {
   }, [retry]);
   const journey = journeys.find((j) => j.id === journeyId);
   const selectedType = journey?.ticketTypes.find((t) => t.code === type);
+  const bookingCount = journey?.mode === 'Bus' ? seatSelection?.seats.length || 0 : passengerCount;
   const searchTerms = search.toLowerCase().trim().split(/\s+/).filter(Boolean);
   const available = journeys.filter(
     (j) =>
@@ -109,13 +115,19 @@ export default function TicketPurchaseScreen() {
       )
   );
   const expired = quote ? new Date(quote.expiresAt).getTime() <= now : false;
-  const back = () => {
+  const back = async () => {
     if (busy) return;
     if (purchaseUncertain.current) {
       router.replace('/(tabs)/tickets');
       return;
     }
     if (quote) {
+      if (quote.tripId) {
+        setBusy(true);
+        try { await releaseSeatHold(quote.id); }
+        catch (failure) { setError(ticketError(failure)); return; }
+        finally { if (mounted.current) setBusy(false); }
+      }
       setQuote(null);
       setError(null);
       purchaseUncertain.current = false;
@@ -124,9 +136,13 @@ export default function TicketPurchaseScreen() {
   };
   const review = async () => {
     if (submitting.current || !journey || !selectedType) return;
+    if (journey.mode === 'Bus' && !seatSelection?.seats.length) {
+      setError('Choose your bus departure and seats first.');
+      return;
+    }
     const at = parseDeparture(departure.date, departure.time);
     if (
-      !travelNow &&
+      journey.mode !== 'Bus' && !travelNow &&
       (!at ||
         at.getTime() <= Date.now() ||
         at.getTime() > Date.now() + 30 * 86400000)
@@ -143,7 +159,8 @@ export default function TicketPurchaseScreen() {
         journey.id,
         type,
         travelNow ? 'now' : at!.toISOString(),
-        passengerCount
+        bookingCount,
+        journey.mode === 'Bus' && seatSelection ? { tripId: seatSelection.trip.id, seats: seatSelection.seats } : undefined
       );
       if (mounted.current) {
         setQuote(data);
@@ -191,6 +208,12 @@ export default function TicketPurchaseScreen() {
         title={quote ? 'Review your ticket' : 'New Ticket'}
         onBack={back}
       />
+      {showSeats && journey && selectedType && (
+        <BusSeatPicker journey={journey} fareMinor={selectedType.fareMinor} value={seatSelection}
+          onClose={() => setShowSeats(false)} onSelect={(selection) => {
+            setSeatSelection(selection); setShowSeats(false); setError(null);
+          }} />
+      )}
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -281,6 +304,11 @@ export default function TicketPurchaseScreen() {
                 </Text>
                 <Text style={styles.label}>PASSENGER</Text>
                 <Text style={styles.value}>{passenger}</Text>
+                {!!quote.seats?.length && <>
+                  <Text style={styles.label}>BUS & SEATS</Text>
+                  <Text style={styles.value}>{quote.busName}</Text>
+                  <Text style={styles.value}>{quote.seats.join(', ')} · {quote.passengerCount} passengers</Text>
+                </>}
               </View>
               <View style={styles.panel}>
                 <Text style={styles.sectionTitle}>Fare breakdown</Text>
@@ -372,6 +400,7 @@ export default function TicketPurchaseScreen() {
                       setMode(value);
                       setJourneyId('');
                       setType('');
+                      setSeatSelection(null);
                     }}
                     accessibilityRole="radio"
                     accessibilityState={{ checked: mode === value }}
@@ -439,6 +468,7 @@ export default function TicketPurchaseScreen() {
                   onPress={() => {
                     setJourneyId(item.id);
                     setType(item.ticketTypes[0]?.code || '');
+                    setSeatSelection(null);
                     setError(null);
                   }}
                   accessibilityRole="radio"
@@ -470,6 +500,7 @@ export default function TicketPurchaseScreen() {
               {journey && (
                 <View style={styles.panel}>
                   <Text style={styles.sectionTitle}>Make it your journey</Text>
+                  {journey.mode !== 'Bus' && <>
                   <Text style={styles.label}>PASSENGERS</Text>
                   <View style={styles.between}>
                     <TouchableOpacity
@@ -497,6 +528,7 @@ export default function TicketPurchaseScreen() {
                     </TouchableOpacity>
                   </View>
                   <Text style={styles.hint}>Up to 10 passengers. Each gets their own QR ticket at the selected fare.</Text>
+                  </>}
                   <Text style={styles.label}>TICKET TYPE</Text>
                   {journey.ticketTypes.map((item) => (
                     <TouchableOpacity
@@ -516,6 +548,18 @@ export default function TicketPurchaseScreen() {
                       </Text>
                     </TouchableOpacity>
                   ))}
+                  {journey.mode === 'Bus' ? <>
+                    <Text style={styles.label}>BUS DEPARTURE & SEATS</Text>
+                    {seatSelection && <>
+                      <Text style={styles.value}>{seatSelection.trip.busName}</Text>
+                      <Text style={styles.hint}>{formatTicketDate(seatSelection.trip.departureAt)} · {formatTicketTime(seatSelection.trip.departureAt)}</Text>
+                      <Text style={styles.value}>Seats {seatSelection.seats.join(', ')} · {bookingCount} {bookingCount === 1 ? 'passenger' : 'passengers'}</Text>
+                    </>}
+                    <Button variant="secondary" disabled={busy} style={styles.secondary} onPress={() => setShowSeats(true)}>
+                      {seatSelection ? 'Change seats' : 'Choose bus & seats'}
+                    </Button>
+                    <Text style={styles.hint}>Passenger count comes from your selected seats. Review to hold them for up to 5 minutes.</Text>
+                  </> : <>
                   <Text style={styles.label}>WHEN DO YOU WANT TO TRAVEL?</Text>
                   <View style={styles.modeRow}>
                     {[true, false].map((value) => (
@@ -562,6 +606,7 @@ export default function TicketPurchaseScreen() {
                     selected start time. This is not a reserved departure or
                     seat.
                   </Text>
+                  </>}
                 </View>
               )}
             </>
@@ -573,13 +618,13 @@ export default function TicketPurchaseScreen() {
               <Text style={styles.label}>YOUR FARE</Text>
               <Text style={styles.total}>
                 {selectedType
-                  ? formatFare(selectedType.fareMinor * passengerCount)
+                  ? formatFare(selectedType.fareMinor * bookingCount)
                   : 'Select a journey'}
               </Text>
             </View>
             <Button
               style={{ marginTop: 10 }}
-              disabled={!journey || !selectedType}
+              disabled={!journey || !selectedType || (journey.mode === 'Bus' && !seatSelection?.seats.length)}
               loading={busy}
               onPress={() => {
                 void review();

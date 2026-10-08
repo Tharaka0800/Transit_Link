@@ -18,6 +18,9 @@ export interface Quote {
   fareMinor: number;
   passengerCount?: number;
   totalFareMinor?: number;
+  seats?: string[];
+  tripId?: string;
+  busName?: string;
   currency: string;
   validFrom: string;
   validUntil: string;
@@ -33,16 +36,30 @@ export interface Ticket extends Omit<Quote, 'expiresAt'> {
   qrPayload?: string;
   bookingId?: string;
   passengerNumber?: number;
+  seatLabel?: string;
 }
+export interface BusTrip {
+  id: string;
+  busName: string;
+  departureAt: string;
+  availableSeats: number;
+  seats: Array<{ label: string; status: 'available' | 'occupied' | 'reserved' }>;
+}
+export const loadBusTrips = async (journeyId: string): Promise<BusTrip[]> =>
+  (await api.get(`/tickets/journeys/${encodeURIComponent(journeyId)}/trips`)).data.trips;
+export const releaseSeatHold = async (quoteId: string): Promise<void> => {
+  await api.post(`/tickets/quotes/${encodeURIComponent(quoteId)}/release`);
+};
 export const loadJourneys = async (): Promise<Journey[]> =>
   (await api.get('/tickets/journeys')).data.journeys;
 export const quoteJourney = async (
   journeyId: string,
   ticketType: string,
   departureAt: string,
-  passengerCount = 1
+  passengerCount = 1,
+  seatSelection?: { tripId: string; seats: string[] }
 ): Promise<Quote> =>
-  (await api.post('/tickets/quotes', { journeyId, ticketType, departureAt, passengerCount }))
+  (await api.post('/tickets/quotes', { journeyId, ticketType, departureAt, passengerCount, ...seatSelection }))
     .data.quote;
 export const purchaseQuote = async (quoteId: string): Promise<Ticket> =>
   (await api.post('/tickets/purchase', { quoteId })).data.ticket;

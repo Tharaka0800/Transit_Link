@@ -56,6 +56,12 @@ Teammates' account and notification screens continue to use the existing Axios R
 
 Ensure the device can reach the backend port when using account or notification features.
 
+## Bus seat booking
+
+Open Tickets → New Ticket, choose a bus journey and ticket type, then choose **Choose bus & seats**. Select a demo departure and tap available seats; each selected seat counts as one passenger, up to 10. The screen uses a 2+2 layout with an aisle, driver cabin, row labels, and window-seat labels. White means available, blue selected, grey occupied, and green temporarily held by another booking.
+
+Availability refreshes every 15 seconds while the picker is open. Selection changes update the total; switching departures clears the selection. Reviewing holds seats for up to five minutes, and editing releases the hold. Confirmation creates a separate ticket and QR for each selected seat. Seat numbers appear in My Tickets and ticket details. Restart the backend and reload Expo Go after installing this feature. The schedule, vehicle layout, and fares are demo data; payment is still simulated.
+
 ## Auth storage
 
 JWT and user session are stored with `@react-native-async-storage/async-storage`.

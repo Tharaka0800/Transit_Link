@@ -52,6 +52,7 @@ export default function TicketCard({
           {formatTicketTime(ticket.validFrom)}
         </Text>
       </TouchableOpacity>
+      {!!ticket.seatLabel && <Text style={styles.meta}>Seat {ticket.seatLabel} · {ticket.busName}</Text>}
       <View style={styles.footer}>
         <View>
           <Text style={styles.type}>{ticket.ticketTypeLabel}</Text>

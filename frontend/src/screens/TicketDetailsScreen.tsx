@@ -215,6 +215,10 @@ export default function TicketDetailsScreen() {
                 </View>
                 <Text style={styles.label}>PASSENGER</Text>
                 <Text style={styles.value}>{ticket.passengerName}</Text>
+                {!!ticket.seatLabel && <>
+                  <Text style={styles.label}>BUS & SEAT</Text>
+                  <Text style={styles.value}>{ticket.busName} · Seat {ticket.seatLabel}</Text>
+                </>}
                 {(ticket.passengerCount || 1) > 1 && (
                   <Text style={styles.hint}>Passenger {ticket.passengerNumber} of {ticket.passengerCount}</Text>
                 )}
