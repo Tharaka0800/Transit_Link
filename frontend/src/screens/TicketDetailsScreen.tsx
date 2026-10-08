@@ -15,6 +15,7 @@ import Navbar from '../components/Navbar';
 import Button from '../components/Button';
 import TicketQRCode from '../components/ticketing/TicketQRCode';
 import TicketStatusBadge from '../components/ticketing/TicketStatusBadge';
+import { paymentMethodLabels } from '../components/ticketing/PaymentMethodSelector';
 import {
   Ticket,
   loadTicket,
@@ -215,6 +216,10 @@ export default function TicketDetailsScreen() {
                 </View>
                 <Text style={styles.label}>PASSENGER</Text>
                 <Text style={styles.value}>{ticket.passengerName}</Text>
+                {!!ticket.paymentMethod && <>
+                  <Text style={styles.label}>PAYMENT METHOD</Text>
+                  <Text style={styles.value}>{paymentMethodLabels[ticket.paymentMethod]} · Demo</Text>
+                </>}
                 {!!ticket.seatLabel && <>
                   <Text style={styles.label}>BUS & SEAT</Text>
                   <Text style={styles.value}>{ticket.busName} · Seat {ticket.seatLabel}</Text>

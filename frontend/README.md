@@ -62,6 +62,10 @@ Open Tickets → New Ticket, choose a bus journey and ticket type, then choose *
 
 Availability refreshes every 15 seconds while the picker is open. Selection changes update the total; switching departures clears the selection. Reviewing holds seats for up to five minutes, and editing releases the hold. Confirmation creates a separate ticket and QR for each selected seat. Seat numbers appear in My Tickets and ticket details. Restart the backend and reload Expo Go after installing this feature. The schedule, vehicle layout, and fares are demo data; payment is still simulated.
 
+## Demo payment methods
+
+The ticket review screen includes a payment-method selector for Transit Smart Balance, Card, and Mobile Wallet. These options simulate checkout and collect no payment credentials or funds. The selected method is recorded on each ticket and cannot change during an uncertain confirmation retry. Payment Information explains the demo limitation; saved cards, top-ups, wallet authorisation, and promo codes require future payment-provider integration.
+
 ## Auth storage
 
 JWT and user session are stored with `@react-native-async-storage/async-storage`.

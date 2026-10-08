@@ -17,6 +17,7 @@ import Navbar from '../components/Navbar';
 import Button from '../components/Button';
 import JourneyDateTimePicker from '../components/ticketing/JourneyDateTimePicker';
 import BusSeatPicker from '../components/ticketing/BusSeatPicker';
+import PaymentMethodSelector from '../components/ticketing/PaymentMethodSelector';
 import { getStoredUser, getToken } from '../services/api';
 import {
   Journey,
@@ -28,6 +29,7 @@ import {
   isSessionError,
   BusTrip,
   releaseSeatHold,
+  PaymentMethod,
 } from '../services/ticketService';
 import {
   defaultDeparture,
@@ -48,6 +50,7 @@ export default function TicketPurchaseScreen() {
   const [passengerCount, setPassengerCount] = useState(1);
   const [seatSelection, setSeatSelection] = useState<{ trip: BusTrip; seats: string[] } | null>(null);
   const [showSeats, setShowSeats] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('transit-balance');
   const [departure, setDeparture] = useState(defaultDeparture);
   const [travelNow, setTravelNow] = useState(true);
   const [quote, setQuote] = useState<Quote | null>(null);
@@ -183,7 +186,7 @@ export default function TicketPurchaseScreen() {
     setBusy(true);
     setError(null);
     try {
-      const ticket = await purchaseQuote(quote.id);
+      const ticket = await purchaseQuote(quote.id, paymentMethod);
       if (mounted.current)
         router.replace({
           pathname: '/ticketing/[id]',
@@ -326,6 +329,7 @@ export default function TicketPurchaseScreen() {
                   </Text>
                 </View>
               </View>
+              <PaymentMethodSelector value={paymentMethod} onChange={setPaymentMethod} disabled={busy || purchaseUncertain.current || expired} />
               <View style={styles.demo}>
                 <Ionicons
                   name="information-circle-outline"

@@ -31,6 +31,7 @@ const ticketSchema = new mongoose.Schema(
     fareMinor: { type: Number, required: true },
     currency: { type: String, default: 'LKR', enum: ['LKR'] },
     purchaseMode: { type: String, default: 'demo', enum: ['demo'] },
+    paymentMethod: { type: String, enum: ['transit-balance', 'card', 'mobile-wallet'], default: 'transit-balance' },
     qrToken: { type: String, required: true, unique: true, select: false },
     status: { type: String, enum: ['Active', 'Used'], default: 'Active' },
     validFrom: { type: Date, required: true },

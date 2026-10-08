@@ -146,7 +146,7 @@ test('shows server fare for review and issues only after explicit confirmation',
   expect(content()).toContain('No payment is collected');
   expect(purchaseQuote).not.toHaveBeenCalled();
   await press('Confirm purchase');
-  expect(purchaseQuote).toHaveBeenCalledWith(quote.id);
+  expect(purchaseQuote).toHaveBeenCalledWith(quote.id, 'transit-balance');
   expect(router.replace).toHaveBeenCalledWith({
     pathname: '/ticketing/[id]',
     params: { id: ticket.id, purchased: '1' },
@@ -259,4 +259,17 @@ test('bus booking derives count from seats, reviews the selected departure, and 
   await press('Edit journey');
   expect(releaseSeatHold).toHaveBeenCalledWith(quote.id);
   expect(content()).toContain('Change seats');
+});
+
+
+test('selected payment method is sent to confirmation and cannot change during an uncertain retry', async () => {
+  await renderJourney();
+  await press('Review ticket');
+  await press('Pay with Card');
+  jest.mocked(purchaseQuote).mockRejectedValueOnce(new Error('offline'));
+  await press('Confirm purchase');
+  expect(purchaseQuote).toHaveBeenCalledWith(quote.id, 'card');
+  expect(button('Pay with Mobile wallet').props.disabled).toBe(true);
+  await press('Retry confirmation safely');
+  expect(jest.mocked(purchaseQuote).mock.calls.map(call => call[1])).toEqual(['card', 'card']);
 });

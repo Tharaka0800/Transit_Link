@@ -1,5 +1,6 @@
 import api from './api';
 export type TicketStatus = 'Upcoming' | 'Active' | 'Used' | 'Expired';
+export type PaymentMethod = 'transit-balance' | 'card' | 'mobile-wallet';
 export interface Journey {
   id: string;
   code: string;
@@ -37,6 +38,7 @@ export interface Ticket extends Omit<Quote, 'expiresAt'> {
   bookingId?: string;
   passengerNumber?: number;
   seatLabel?: string;
+  paymentMethod?: PaymentMethod;
 }
 export interface BusTrip {
   id: string;
@@ -61,8 +63,8 @@ export const quoteJourney = async (
 ): Promise<Quote> =>
   (await api.post('/tickets/quotes', { journeyId, ticketType, departureAt, passengerCount, ...seatSelection }))
     .data.quote;
-export const purchaseQuote = async (quoteId: string): Promise<Ticket> =>
-  (await api.post('/tickets/purchase', { quoteId })).data.ticket;
+export const purchaseQuote = async (quoteId: string, paymentMethod: PaymentMethod = 'transit-balance'): Promise<Ticket> =>
+  (await api.post('/tickets/purchase', { quoteId, paymentMethod })).data.ticket;
 export const loadTickets = async (): Promise<Ticket[]> =>
   (await api.get('/tickets')).data.tickets;
 export const loadTicket = async (id: string): Promise<Ticket> =>

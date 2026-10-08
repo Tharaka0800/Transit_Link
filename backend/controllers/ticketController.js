@@ -152,7 +152,9 @@ export const createQuote = async (req, res, next) => {
 export const purchaseTicket = async (req, res, next) => {
   try {
     await Ticket.init();
-    const { quoteId } = req.body;
+    const { quoteId, paymentMethod = 'transit-balance' } = req.body;
+    if (!['transit-balance', 'card', 'mobile-wallet'].includes(paymentMethod))
+      fail(res, 400, 'Choose an available payment method.');
     if (!validId(quoteId))
       fail(res, 400, 'Review your fare before confirming.');
     let quote = await TicketQuote.findOne({ _id: quoteId, userId: req.user._id });
@@ -168,6 +170,9 @@ export const purchaseTicket = async (req, res, next) => {
       totalFareMinor: quote.fareMinor * count,
     });
     if (existing.length === count) return respond(existing, 200);
+    // Keep the chosen method stable across concurrent confirmation and retries.
+    await TicketQuote.updateOne({ _id: quote._id, paymentMethod: null }, { $set: { paymentMethod } });
+    quote = await TicketQuote.findById(quote._id);
     if (quote.tripId) {
       if (!quote.purchaseStartedAt && !(await TicketJourney.exists({ _id: quote.journeyId, active: true })))
         fail(res, 409, 'This journey is no longer available.');
@@ -209,6 +214,7 @@ export const purchaseTicket = async (req, res, next) => {
           ticketType: quote.ticketType,
           ticketTypeLabel: quote.ticketTypeLabel,
           fareMinor: quote.fareMinor,
+          paymentMethod: quote.paymentMethod,
           ...(quote.tripId ? {
             tripId: quote.tripId, busName: quote.busName,
             seatLabel: quote.seats[passengerNumber - 1],

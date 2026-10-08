@@ -18,6 +18,7 @@ const ticketQuoteSchema = new mongoose.Schema(
     fareMinor: { type: Number, required: true },
     passengerCount: { type: Number, default: 1, min: 1, max: 10 },
     purchaseStartedAt: Date,
+    paymentMethod: { type: String, enum: ['transit-balance', 'card', 'mobile-wallet'] },
     tripId: { type: mongoose.Schema.Types.ObjectId, ref: 'BusTrip' },
     busName: String,
     seats: [String],

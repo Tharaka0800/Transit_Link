@@ -24,6 +24,7 @@ export function ticketView(ticket, includeQR = false) {
     fareMinor: ticket.fareMinor,
     currency: ticket.currency,
     purchaseMode: ticket.purchaseMode,
+    paymentMethod: ticket.paymentMethod || 'transit-balance',
     status: ticketStatus(ticket),
     purchasedAt: ticket.createdAt,
     validFrom: ticket.validFrom,

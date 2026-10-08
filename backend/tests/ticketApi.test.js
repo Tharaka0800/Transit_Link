@@ -455,3 +455,17 @@ test('expired and released seat holds are reusable and cannot confirm an old quo
   const refreshed = (await request('/journeys/' + bus.id + '/trips', passenger)).body.trips.find(item => item.id === trip.id);
   assert.equal(refreshed.seats.find(seat => seat.label === '03A').status, 'available');
 });
+
+
+test('demo payment method is validated, saved per ticket, and preserved on retries', async () => {
+  const q = await quote();
+  assert.equal((await request('/purchase', passenger, {quoteId: q.id, paymentMethod: 'unknown'})).status, 400);
+  assert.equal(await Ticket.countDocuments({quoteId: q.id}), 0);
+  const result = await request('/purchase', passenger, {quoteId: q.id, paymentMethod: 'card'});
+  assert.equal(result.status, 201);
+  assert.equal(result.body.ticket.paymentMethod, 'card');
+  assert.equal(result.body.ticket.purchaseMode, 'demo');
+  const retry = await request('/purchase', passenger, {quoteId: q.id, paymentMethod: 'mobile-wallet'});
+  assert.equal(retry.body.ticket.id, result.body.ticket.id);
+  assert.equal(retry.body.ticket.paymentMethod, 'card');
+});
