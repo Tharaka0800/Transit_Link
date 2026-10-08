@@ -7,6 +7,7 @@ import userRoutes from './routes/userRoutes.js';
 import notificationRoutes from './routes/notificationRoutes.js';
 import ticketRoutes from './routes/ticketRoutes.js';
 import loadTicketCatalogue from './config/ticketCatalogue.js';
+import prepareTicketIndexes from './config/ticketIndexes.js';
 import { notFound, errorHandler } from './middleware/errorMiddleware.js';
 import seedDemoData from './utils/seedData.js';
 
@@ -40,6 +41,7 @@ const PORT = process.env.PORT || 5000;
 
 const startServer = async () => {
   await connectDB();
+  await prepareTicketIndexes();
   await loadTicketCatalogue();
 
   if (process.env.USE_MEMORY_DB === 'true' || process.env.AUTO_SEED === 'true') {

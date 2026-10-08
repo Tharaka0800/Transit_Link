@@ -16,6 +16,8 @@ const ticketQuoteSchema = new mongoose.Schema(
     ticketType: { type: String, required: true },
     ticketTypeLabel: { type: String, required: true },
     fareMinor: { type: Number, required: true },
+    passengerCount: { type: Number, default: 1, min: 1, max: 10 },
+    purchaseStartedAt: Date,
     validFrom: { type: Date, required: true },
     validUntil: { type: Date, required: true },
     expiresAt: { type: Date, required: true },

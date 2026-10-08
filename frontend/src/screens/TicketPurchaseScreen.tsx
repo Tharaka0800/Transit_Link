@@ -42,6 +42,7 @@ export default function TicketPurchaseScreen() {
   const [search, setSearch] = useState('');
   const [journeyId, setJourneyId] = useState('');
   const [type, setType] = useState('');
+  const [passengerCount, setPassengerCount] = useState(1);
   const [departure, setDeparture] = useState(defaultDeparture);
   const [travelNow, setTravelNow] = useState(true);
   const [quote, setQuote] = useState<Quote | null>(null);
@@ -99,12 +100,13 @@ export default function TicketPurchaseScreen() {
   }, [retry]);
   const journey = journeys.find((j) => j.id === journeyId);
   const selectedType = journey?.ticketTypes.find((t) => t.code === type);
+  const searchTerms = search.toLowerCase().trim().split(/\s+/).filter(Boolean);
   const available = journeys.filter(
     (j) =>
       j.mode === mode &&
-      `${j.from} ${j.to} ${j.code}`
-        .toLowerCase()
-        .includes(search.toLowerCase().trim())
+      searchTerms.every((term) =>
+        `${j.from} ${j.to} ${j.code}`.toLowerCase().includes(term)
+      )
   );
   const expired = quote ? new Date(quote.expiresAt).getTime() <= now : false;
   const back = () => {
@@ -140,7 +142,8 @@ export default function TicketPurchaseScreen() {
       const data = await quoteJourney(
         journey.id,
         type,
-        travelNow ? 'now' : at!.toISOString()
+        travelNow ? 'now' : at!.toISOString(),
+        passengerCount
       );
       if (mounted.current) {
         setQuote(data);
@@ -282,16 +285,16 @@ export default function TicketPurchaseScreen() {
               <View style={styles.panel}>
                 <Text style={styles.sectionTitle}>Fare breakdown</Text>
                 <View style={styles.between}>
-                  <Text style={styles.value}>{quote.ticketTypeLabel} × 1</Text>
+                  <Text style={styles.value}>{quote.ticketTypeLabel} × {quote.passengerCount || 1}</Text>
                   <Text style={styles.value}>
-                    {formatFare(quote.fareMinor)}
+                    {formatFare(quote.totalFareMinor ?? quote.fareMinor * (quote.passengerCount || 1))}
                   </Text>
                 </View>
                 <View style={styles.divider} />
                 <View style={styles.between}>
                   <Text style={styles.sectionTitle}>Total fare</Text>
                   <Text style={styles.total}>
-                    {formatFare(quote.fareMinor)}
+                    {formatFare(quote.totalFareMinor ?? quote.fareMinor * (quote.passengerCount || 1))}
                   </Text>
                 </View>
               </View>
@@ -302,8 +305,8 @@ export default function TicketPurchaseScreen() {
                   color={colors.brand}
                 />
                 <Text style={styles.demoText}>
-                  University demo purchase. No payment is collected. One ticket
-                  admits one passenger and can be validated once.
+                  University demo purchase. No payment is collected. Each passenger
+                  receives a separate ticket and QR code, valid for one use.
                 </Text>
               </View>
               <Text style={styles.quoteTime}>
@@ -332,7 +335,7 @@ export default function TicketPurchaseScreen() {
               >
                 {purchaseUncertain.current
                   ? 'Retry confirmation safely'
-                  : 'Confirm demo purchase'}
+                  : 'Confirm purchase'}
               </Button>
               <Button
                 variant="secondary"
@@ -467,6 +470,33 @@ export default function TicketPurchaseScreen() {
               {journey && (
                 <View style={styles.panel}>
                   <Text style={styles.sectionTitle}>Make it your journey</Text>
+                  <Text style={styles.label}>PASSENGERS</Text>
+                  <View style={styles.between}>
+                    <TouchableOpacity
+                      accessibilityRole="button"
+                      accessibilityLabel="Remove passenger"
+                      accessibilityState={{ disabled: busy || passengerCount <= 1 }}
+                      disabled={busy || passengerCount <= 1}
+                      style={styles.countButton}
+                      onPress={() => setPassengerCount((count) => Math.max(1, count - 1))}
+                    >
+                      <Ionicons name="remove" size={24} color={passengerCount <= 1 ? colors.gray300 : colors.brand} />
+                    </TouchableOpacity>
+                    <Text style={styles.value} accessibilityLiveRegion="polite">
+                      {passengerCount} {passengerCount === 1 ? 'passenger' : 'passengers'}
+                    </Text>
+                    <TouchableOpacity
+                      accessibilityRole="button"
+                      accessibilityLabel="Add passenger"
+                      accessibilityState={{ disabled: busy || passengerCount >= 10 }}
+                      disabled={busy || passengerCount >= 10}
+                      style={styles.countButton}
+                      onPress={() => setPassengerCount((count) => Math.min(10, count + 1))}
+                    >
+                      <Ionicons name="add" size={24} color={passengerCount >= 10 ? colors.gray300 : colors.brand} />
+                    </TouchableOpacity>
+                  </View>
+                  <Text style={styles.hint}>Up to 10 passengers. Each gets their own QR ticket at the selected fare.</Text>
                   <Text style={styles.label}>TICKET TYPE</Text>
                   {journey.ticketTypes.map((item) => (
                     <TouchableOpacity
@@ -543,7 +573,7 @@ export default function TicketPurchaseScreen() {
               <Text style={styles.label}>YOUR FARE</Text>
               <Text style={styles.total}>
                 {selectedType
-                  ? formatFare(selectedType.fareMinor)
+                  ? formatFare(selectedType.fareMinor * passengerCount)
                   : 'Select a journey'}
               </Text>
             </View>
@@ -564,6 +594,7 @@ export default function TicketPurchaseScreen() {
   );
 }
 const styles = StyleSheet.create({
+  countButton: { padding: 14, borderRadius: 12, backgroundColor: colors.gray100 },
   safe: { flex: 1, backgroundColor: colors.gray50 },
   flex: { flex: 1 },
   body: { padding: 20, paddingBottom: 32 },

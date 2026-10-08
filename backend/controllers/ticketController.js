@@ -45,7 +45,9 @@ export const getJourneys = async (req, res, next) => {
 
 export const createQuote = async (req, res, next) => {
   try {
-    const { journeyId, ticketType, departureAt } = req.body;
+    const { journeyId, ticketType, departureAt, passengerCount = 1 } = req.body;
+    if (!Number.isInteger(passengerCount) || passengerCount < 1 || passengerCount > 10)
+      fail(res, 400, 'Choose between 1 and 10 passengers.');
     if (!validId(journeyId)) fail(res, 400, 'Choose an available journey.');
     const journey = await TicketJourney.findOne({
       _id: journeyId,
@@ -82,6 +84,7 @@ export const createQuote = async (req, res, next) => {
       ticketType: type.code,
       ticketTypeLabel: type.label,
       fareMinor: type.fareMinor,
+      passengerCount,
       validFrom,
       validUntil: new Date(
         validFrom.getTime() + journey.validityMinutes * 60000
@@ -104,6 +107,8 @@ export const createQuote = async (req, res, next) => {
           ticketType: quote.ticketType,
           ticketTypeLabel: quote.ticketTypeLabel,
           fareMinor: quote.fareMinor,
+          passengerCount: quote.passengerCount,
+          totalFareMinor: quote.fareMinor * quote.passengerCount,
           currency: 'LKR',
           validFrom: quote.validFrom,
           validUntil: quote.validUntil,
@@ -121,46 +126,58 @@ export const purchaseTicket = async (req, res, next) => {
     const { quoteId } = req.body;
     if (!validId(quoteId))
       fail(res, 400, 'Review your fare before confirming.');
-    // A quote is the idempotency key. Retrying a completed purchase returns the same ticket.
-    const existing = await Ticket.findOne({
-      quoteId,
-      userId: req.user._id,
-    }).select('+qrToken');
-    if (existing) return res.json({ ticket: ticketView(existing, true) });
-    const quote = await TicketQuote.findOne({
-      _id: quoteId,
-      userId: req.user._id,
+    let quote = await TicketQuote.findOne({ _id: quoteId, userId: req.user._id });
+    if (!quote) fail(res, 404, 'Fare quote not found. Review your journey again.');
+    const existing = await Ticket.find({ quoteId, userId: req.user._id })
+      .sort({ passengerNumber: 1 }).select('+qrToken');
+    const count = quote.passengerCount || 1;
+    const respond = (tickets, status) => res.status(status).json({
+      ticket: ticketView(tickets[0], true),
+      tickets: tickets.map(ticket => ticketView(ticket, true)),
+      bookingId: String(quote._id),
+      passengerCount: count,
+      totalFareMinor: quote.fareMinor * count,
     });
-    if (!quote)
-      fail(res, 404, 'Fare quote not found. Review your journey again.');
-    if (quote.expiresAt <= new Date())
-      fail(res, 409, 'Your fare quote expired. Review your journey again.');
-    if (!(await TicketJourney.exists({ _id: quote.journeyId, active: true })))
-      fail(res, 409, 'This journey is no longer available.');
-    let ticket;
-    try {
-      ticket = await Ticket.create({
-        reference: newTicketReference(),
-        qrToken: newTicketToken(),
-        userId: req.user._id,
-        quoteId: quote._id,
-        journeyId: quote.journeyId,
-        journey: quote.journey,
-        passengerName: req.user.fullName,
-        ticketType: quote.ticketType,
-        ticketTypeLabel: quote.ticketTypeLabel,
-        fareMinor: quote.fareMinor,
-        validFrom: quote.validFrom,
-        validUntil: quote.validUntil,
-      });
-    } catch (error) {
-      if (error.code !== 11000) throw error;
-      ticket = await Ticket.findOne({ quoteId, userId: req.user._id }).select(
-        '+qrToken'
+    if (existing.length === count) return respond(existing, 200);
+    if (!quote.purchaseStartedAt) {
+      if (quote.expiresAt <= new Date())
+        fail(res, 409, 'Your fare quote expired. Review your journey again.');
+      if (!(await TicketJourney.exists({ _id: quote.journeyId, active: true })))
+        fail(res, 409, 'This journey is no longer available.');
+      // Persist the start before issuing tickets so an interrupted group can be retried.
+      const started = await TicketQuote.findOneAndUpdate(
+        { _id: quote._id, purchaseStartedAt: null, expiresAt: { $gt: new Date() } },
+        { $set: { purchaseStartedAt: new Date() } }, { new: true }
       );
-      if (!ticket) throw error;
+      quote = started || await TicketQuote.findById(quote._id);
+      if (!quote.purchaseStartedAt)
+        fail(res, 409, 'Your fare quote expired. Review your journey again.');
     }
-    res.status(201).json({ ticket: ticketView(ticket, true) });
+    for (let passengerNumber = 1; passengerNumber <= count; passengerNumber++) {
+      const key = { quoteId: quote._id, passengerNumber };
+      try {
+        await Ticket.updateOne(key, { $setOnInsert: {
+          ...key,
+          passengerCount: count,
+          reference: newTicketReference(),
+          qrToken: newTicketToken(),
+          userId: req.user._id,
+          journeyId: quote.journeyId,
+          journey: quote.journey,
+          passengerName: req.user.fullName,
+          ticketType: quote.ticketType,
+          ticketTypeLabel: quote.ticketTypeLabel,
+          fareMinor: quote.fareMinor,
+          validFrom: quote.validFrom,
+          validUntil: quote.validUntil,
+        } }, { upsert: true, runValidators: true });
+      } catch (error) {
+        if (error.code !== 11000 || !(await Ticket.exists(key))) throw error;
+      }
+    }
+    const tickets = await Ticket.find({ quoteId, userId: req.user._id })
+      .sort({ passengerNumber: 1 }).select('+qrToken');
+    return respond(tickets, 201);
   } catch (error) {
     next(error);
   }

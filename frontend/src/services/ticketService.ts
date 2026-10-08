@@ -16,6 +16,8 @@ export interface Quote {
   ticketType: string;
   ticketTypeLabel: string;
   fareMinor: number;
+  passengerCount?: number;
+  totalFareMinor?: number;
   currency: string;
   validFrom: string;
   validUntil: string;
@@ -29,15 +31,18 @@ export interface Ticket extends Omit<Quote, 'expiresAt'> {
   usedAt: string | null;
   purchaseMode: 'demo';
   qrPayload?: string;
+  bookingId?: string;
+  passengerNumber?: number;
 }
 export const loadJourneys = async (): Promise<Journey[]> =>
   (await api.get('/tickets/journeys')).data.journeys;
 export const quoteJourney = async (
   journeyId: string,
   ticketType: string,
-  departureAt: string
+  departureAt: string,
+  passengerCount = 1
 ): Promise<Quote> =>
-  (await api.post('/tickets/quotes', { journeyId, ticketType, departureAt }))
+  (await api.post('/tickets/quotes', { journeyId, ticketType, departureAt, passengerCount }))
     .data.quote;
 export const purchaseQuote = async (quoteId: string): Promise<Ticket> =>
   (await api.post('/tickets/purchase', { quoteId })).data.ticket;

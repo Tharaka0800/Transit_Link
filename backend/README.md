@@ -32,4 +32,22 @@ Run `npm run seed` to reset and repopulate the configured demo database. This co
 
 Profile and notification routes require `Authorization: Bearer <login token>`. Their controllers, models, and middleware retain the existing behavior.
 
-The frontend backend URL setting applies to these account and notification routes only. Use **Open Officer Dashboard** on the login screen to demonstrate Officer CRUD without starting a backend or signing in. Officer validation commands are documented in [frontend/README.md](../frontend/README.md).
+The frontend backend URL setting applies to account, notification, journey search, and ticket booking routes. Use **Open Officer Dashboard** on the login screen to demonstrate Officer CRUD without starting a backend or signing in. Officer validation commands are documented in [frontend/README.md](../frontend/README.md).
+
+## Demo ticket journeys
+
+`data/ticket-journeys.demo.json` contains 26 sample bus and train journeys, including return routes and destinations such as Kandy, Galle, Negombo, Matara, Kurunegala, Badulla, Moratuwa, and Jaffna. Fares and durations are university demo values, not published operator prices or timetables.
+
+For persistent MongoDB, add or update these journeys without resetting accounts or tickets:
+
+```bash
+npm run tickets:import -- data/ticket-journeys.demo.json
+```
+
+With `USE_MEMORY_DB=true`, this catalogue loads automatically when the backend starts. Its database resets on restart. Journey listing and ticket booking require a signed-in session.
+
+## Group bookings
+
+Fare quotes accept an integer `passengerCount` from 1 to 10 (default 1). `fareMinor` is the fare per passenger; `totalFareMinor` is calculated by the server. Confirmation returns a `tickets` array with an independent reference and QR for each passenger, plus the first `ticket` for compatibility. Each ticket includes its booking ID and passenger number. All tickets are owned by the booking account; companion names and age-based fares are not collected yet.
+
+Restart the backend after installing this change. Startup preserves existing tickets and replaces the unique quote index with a unique quote/passenger index. Retries reuse the same quote, recover interrupted issuance, and avoid duplicate tickets. Payment remains a university demo and does not reserve seats.

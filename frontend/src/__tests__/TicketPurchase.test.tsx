@@ -1,5 +1,5 @@
 import React from 'react';
-import { Text, TouchableOpacity } from 'react-native';
+import { Text, TextInput, TouchableOpacity } from 'react-native';
 import JourneyDateTimePicker from '../components/ticketing/JourneyDateTimePicker';
 import { act, create, ReactTestRenderer } from 'react-test-renderer';
 import { router } from 'expo-router';
@@ -121,14 +121,26 @@ test('requires login and never loads fares or creates a ticket without a session
   expect(purchaseQuote).not.toHaveBeenCalled();
 });
 
+test('search matches both endpoints regardless of word order, case or extra spaces', async () => {
+  await renderJourney();
+  const search = screen.root.findByType(TextInput);
+  act(() => search.props.onChangeText('  DESTINATION   origin  '));
+  expect(content()).toContain('TEST');
+  act(() => search.props.onChangeText('Destination Unknown'));
+  expect(content()).toContain('No journeys available');
+  expect(content()).not.toContain('TEST');
+  act(() => search.props.onChangeText('   '));
+  expect(content()).toContain('TEST');
+});
+
 test('shows server fare for review and issues only after explicit confirmation', async () => {
   await renderJourney();
   await press('Review ticket');
-  expect(quoteJourney).toHaveBeenCalledWith(journey.id, 'standard', 'now');
+  expect(quoteJourney).toHaveBeenCalledWith(journey.id, 'standard', 'now', 1);
   expect(content()).toContain('LKR 125.00');
   expect(content()).toContain('No payment is collected');
   expect(purchaseQuote).not.toHaveBeenCalled();
-  await press('Confirm demo purchase');
+  await press('Confirm purchase');
   expect(purchaseQuote).toHaveBeenCalledWith(quote.id);
   expect(router.replace).toHaveBeenCalledWith({
     pathname: '/ticketing/[id]',
@@ -145,7 +157,7 @@ test('duplicate presses and uncertain network retries keep the same purchase quo
       reject = no;
     })
   );
-  const confirm = button('Confirm demo purchase').props.onPress;
+  const confirm = button('Confirm purchase').props.onPress;
   act(() => {
     confirm();
     confirm();
@@ -181,7 +193,7 @@ test('an uncertain server failure sends the passenger to My Tickets instead of c
   jest
     .mocked(purchaseQuote)
     .mockRejectedValueOnce({ response: { status: 500 } });
-  await press('Confirm demo purchase');
+  await press('Confirm purchase');
   expect(button('Edit journey').props.disabled).toBe(true);
   await press('Go back');
   expect(router.replace).toHaveBeenCalledWith('/(tabs)/tickets');
@@ -198,11 +210,27 @@ test('no late navigation when confirmation finishes after leaving the screen', a
     })
   );
   act(() => {
-    button('Confirm demo purchase').props.onPress();
+    button('Confirm purchase').props.onPress();
   });
   act(() => screen.unmount());
   await act(async () => {
     resolve(ticket);
   });
   expect(router.replace).not.toHaveBeenCalled();
+});
+
+
+test('passenger count updates the total, enforces limits, and is sent for fare review', async () => {
+  await renderJourney();
+  expect(button('Remove passenger').props.disabled).toBe(true);
+  await press('Add passenger');
+  expect(content()).toContain('LKR 250.00');
+  await press('Review ticket');
+  expect(quoteJourney).toHaveBeenCalledWith(journey.id, 'standard', 'now', 2);
+  await press('Edit journey');
+  for (let i = 2; i < 10; i++) await press('Add passenger');
+  expect(button('Add passenger').props.disabled).toBe(true);
+  expect(content()).toContain('LKR 1,250.00');
+  await press('Remove passenger');
+  expect(button('Add passenger').props.disabled).toBe(false);
 });

@@ -126,6 +126,11 @@ export default function TicketDetailsScreen() {
             <Ionicons name="checkmark-circle" size={24} color={colors.green} />
             <View style={styles.flex}>
               <Text style={styles.successTitle}>Your ticket is ready!</Text>
+              {(ticket.passengerCount || 1) > 1 && (
+                <Text style={styles.successText}>
+                  {ticket.passengerCount} tickets booked. Open My Tickets to view each passenger's QR.
+                </Text>
+              )}
               <Text style={styles.successText}>
                 Demo purchase confirmed. No payment was collected.
               </Text>
@@ -210,6 +215,9 @@ export default function TicketDetailsScreen() {
                 </View>
                 <Text style={styles.label}>PASSENGER</Text>
                 <Text style={styles.value}>{ticket.passengerName}</Text>
+                {(ticket.passengerCount || 1) > 1 && (
+                  <Text style={styles.hint}>Passenger {ticket.passengerNumber} of {ticket.passengerCount}</Text>
+                )}
                 <View style={styles.tear}>
                   <View style={styles.notchLeft} />
                   <View style={styles.dashed} />

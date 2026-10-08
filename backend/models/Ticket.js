@@ -13,8 +13,9 @@ const ticketSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'TicketQuote',
       required: true,
-      unique: true,
     },
+    passengerNumber: { type: Number, default: 1, min: 1, max: 10 },
+    passengerCount: { type: Number, default: 1, min: 1, max: 10 },
     journeyId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'TicketJourney',
@@ -37,4 +38,5 @@ const ticketSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+ticketSchema.index({ quoteId: 1, passengerNumber: 1 }, { unique: true });
 export default mongoose.model('Ticket', ticketSchema);

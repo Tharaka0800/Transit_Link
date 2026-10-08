@@ -14,6 +14,7 @@ import TicketQuote from '../models/TicketQuote.js';
 import ticketRoutes from '../routes/ticketRoutes.js';
 import { errorHandler, notFound } from '../middleware/errorMiddleware.js';
 import loadTicketCatalogue from '../config/ticketCatalogue.js';
+import prepareTicketIndexes from '../config/ticketIndexes.js';
 
 let mongo, server, base, passenger, other, verifier, journey;
 const secret = randomBytes(32).toString('hex');
@@ -109,6 +110,24 @@ after(async () => {
   if (server) await new Promise((resolve) => server.close(resolve));
   await mongoose.disconnect();
   if (mongo) await mongo.stop();
+});
+
+test('legacy ticketNumber index permits new tickets without losing old number uniqueness', async () => {
+  await Ticket.collection.createIndex({ticketNumber: 1}, {unique: true, name: 'ticketNumber_1'});
+  await prepareTicketIndexes();
+  await prepareTicketIndexes();
+  const first = await issue();
+  const second = await issue();
+  assert.notEqual(first.id, second.id);
+  assert.notEqual(first.qrPayload, second.qrPayload);
+  const indexes = await Ticket.collection.indexes();
+  assert.ok(!indexes.some(index => index.name === 'ticketNumber_1'));
+  assert.ok(indexes.some(index => index.key.ticketNumber === 1 && index.unique && index.sparse));
+  await Ticket.collection.updateOne({_id: new mongoose.Types.ObjectId(first.id)}, {$set: {ticketNumber: 'LEGACY-TEST'}});
+  await assert.rejects(
+    Ticket.collection.updateOne({_id: new mongoose.Types.ObjectId(second.id)}, {$set: {ticketNumber: 'LEGACY-TEST'}}),
+    error => error.code === 11000
+  );
 });
 
 test('ticket routes require authentication and expose only configured active journeys', async () => {
@@ -318,10 +337,62 @@ test('memory demo catalogue loads without replacing accounts or existing tickets
   const count = await Ticket.countDocuments();
   process.env.USE_MEMORY_DB = 'true';
   await loadTicketCatalogue();
-  assert.equal(await TicketJourney.countDocuments({ code: /^DEMO-/ }), 7);
+  assert.equal(await TicketJourney.countDocuments({ code: /^DEMO-/ }), 26);
   assert.equal(await User.countDocuments(), 3);
   assert.equal(await Ticket.countDocuments(), count);
   assert.ok(await TicketJourney.exists({ _id: journey._id }));
   await loadTicketCatalogue();
-  assert.equal(await TicketJourney.countDocuments({ code: /^DEMO-/ }), 7);
+  assert.equal(await TicketJourney.countDocuments({ code: /^DEMO-/ }), 26);
+});
+
+
+test('index upgrade preserves legacy tickets and removes only the old booking constraint', async () => {
+  const before = await Ticket.countDocuments();
+  await Ticket.collection.createIndex({quoteId: 1}, {unique: true});
+  await Ticket.collection.updateMany({}, {$unset: {passengerNumber: '', passengerCount: ''}});
+  await prepareTicketIndexes();
+  await prepareTicketIndexes();
+  assert.equal(await Ticket.countDocuments(), before);
+  assert.equal(await Ticket.countDocuments({passengerNumber: 1, passengerCount: 1}), before);
+  const indexes = await Ticket.collection.indexes();
+  assert.ok(indexes.some(index => index.unique && index.key.quoteId && index.key.passengerNumber));
+  assert.ok(!indexes.some(index => index.unique && index.key.quoteId && Object.keys(index.key).length === 1));
+  assert.ok(indexes.some(index => index.unique && index.key.qrToken));
+});
+
+test('group fare is server calculated and concurrent retries issue one QR per passenger', async () => {
+  for (const passengerCount of [0, 11, 1.5, '2', null]) {
+    assert.equal((await request('/quotes', passenger, {
+      journeyId: String(journey._id), ticketType: 'standard', departureAt: 'now', passengerCount,
+    })).status, 400);
+  }
+  const result = await request('/quotes', passenger, {
+    journeyId: String(journey._id), ticketType: 'standard', departureAt: 'now', passengerCount: 3, totalFareMinor: 1,
+  });
+  assert.equal(result.status, 201);
+  const q = result.body.quote;
+  assert.equal(q.totalFareMinor, 12345 * 3);
+  const confirmations = await Promise.all(Array.from({length: 3}, () => request('/purchase', passenger, {
+    quoteId: q.id, passengerCount: 10,
+  })));
+  for (const confirmation of confirmations) {
+    assert.ok([200, 201].includes(confirmation.status));
+    assert.equal(confirmation.body.tickets.length, 3);
+    assert.equal(confirmation.body.totalFareMinor, 12345 * 3);
+  }
+  const tickets = confirmations[0].body.tickets;
+  assert.equal(new Set(tickets.map(t => t.qrPayload)).size, 3);
+  assert.deepEqual(tickets.map(t => t.passengerNumber), [1, 2, 3]);
+  assert.equal(await Ticket.countDocuments({quoteId: q.id}), 3);
+  assert.equal((await request('/purchase', other, {quoteId: q.id})).status, 404);
+  assert.equal((await request('/redeem', verifier, {payload: tickets[0].qrPayload})).status, 200);
+  assert.equal((await request('/verify', verifier, {payload: tickets[1].qrPayload})).body.eligible, true);
+  // Simulate an interrupted issuance, followed by a retry after quote expiry.
+  await Ticket.deleteOne({_id: tickets[2].id});
+  await TicketQuote.updateOne({_id: q.id}, {expiresAt: new Date(Date.now() - 1000)});
+  const recovered = await request('/purchase', passenger, {quoteId: q.id});
+  assert.equal(recovered.body.tickets.length, 3);
+  assert.equal(recovered.body.tickets[0].id, tickets[0].id);
+  assert.equal(recovered.body.tickets[1].id, tickets[1].id);
+  assert.equal(await Ticket.countDocuments({quoteId: q.id}), 3);
 });
