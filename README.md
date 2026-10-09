@@ -1,8 +1,21 @@
 # TransitLink
 
-TransitLink is an Expo SDK 51 / React Native university prototype. Accounts, sessions, profiles, notifications, saved routes, and Transport Officer incidents persist on the device using AsyncStorage. Login and registration require no internet, external database, or running backend.
+TransitLink is a university transit prototype built with Expo SDK 51, React Native, Expo Router, Express, and MongoDB. It combines bus and route demonstrations, digital ticket booking, local passenger accounts, and Transport Officer incident management.
 
-## Run the app
+## Features
+
+| Area | Features | Requirements |
+| --- | --- | --- |
+| Routes and buses | Route search and filters, bus map, status, ETA, saved routes, fare calculator | Bundled demo data; internet for map tiles |
+| Digital tickets | Bus seats, train/group booking, scheduling, history, QR display and verification | Running backend and MongoDB |
+| Passenger accounts | Registration, login, profiles, notifications, settings, support reports | Local device storage |
+| Officer dashboard | Create, read, edit, and resolve incidents | Local Officer account |
+
+Bus positions, ETAs, fares, and schedules are illustrative. Payments are simulated and collect no funds. Local app accounts and online ticket accounts are separate.
+
+## Run the frontend
+
+From the repository root:
 
 ```bash
 cd frontend
@@ -10,37 +23,52 @@ npm install
 npx expo start
 ```
 
-Press `a` for Android or `w` for web. Use an SDK 51-compatible Expo Go client or development build. Metro supplies the development bundle; after loading it, local profile and Officer operations work offline. Online ticket booking requires the Express backend. A standalone build can launch without Metro.
+Press `w` for web or `a` for an Android emulator. Native testing requires an Expo SDK 51-compatible Expo Go client or development build. Custom native clients must include the camera and WebView dependencies. Metro must be reachable to load the development app.
 
-## Demo credentials
+Local accounts, Officer alerts, route search, and bus details do not require the backend. The map needs internet for Leaflet and OpenStreetMap tiles.
 
-| Role | Email / username | Password |
+## Enable online tickets
+
+In another terminal, from the repository root:
+
+```bash
+cd backend
+npm install
+```
+
+Create `backend/.env` from [backend/.env.example](backend/.env.example) if it does not already exist. Configure a private `JWT_SECRET` and choose a database mode:
+
+- **Demo:** set `USE_MEMORY_DB=true`. Accounts and ticket journeys load automatically. Database contents reset on server restart; the first run may download a MongoDB binary.
+- **Persistent:** set `USE_MEMORY_DB=false` and configure `MONGO_URI`. Import journeys with `npm run tickets:import -- data/ticket-journeys.demo.json`. Register an online account in the app. `AUTO_SEED=true` can initialize demo accounts.
+
+Start the server:
+
+```bash
+npm run dev
+```
+
+The default port is `5000`. For a physical phone, set `EXPO_PUBLIC_API_URL` in `frontend/.env` to the computer's reachable LAN address, such as `http://192.168.1.10:5000`, without `/api`. Restart Expo after changing it. Defaults are `http://10.0.2.2:5000` on Android and `http://localhost:5000` on web/iOS simulator.
+
+Open **Tickets > Sign in** to register or sign in online. Local registration does not create a backend account. QR verification requires an online admin account; the local Officer role does not grant backend access.
+
+## Local demo accounts
+
+| Role | Email | Password |
 | --- | --- | --- |
 | Passenger | `tharukee01@gmail.com` | `password123` |
 | Passenger | `passenger.demo@transitlink.lk` | `password123` |
 | Admin | `admin@transitlink.lk` | `admin123` |
 | Transport officer | `officer@transitlink.lk` | `OfficerDemo@2026` |
 
-Accounts initialize once when the local database is missing. Registration creates passengers. Officer login opens **SmartBus Dashboard** directly. Guests, passengers, and admins cannot open the Officer tab or Add/Edit Alert route. The login screen has no unauthenticated Officer shortcut.
+Accounts initialize when local storage is first created. Officer login opens SmartBus Dashboard; other roles open Home. Online demo accounts depend on backend seeding; see [backend setup](backend/README.md).
 
-## Local persistence and access
+## Demonstration
 
-- `frontend/src/services/LocalAppStorage.ts` stores a versioned database at `@transitlink_app_v1`, including users, notifications, saved routes, and the active session.
-- `frontend/src/services/api.js` retains existing service methods and `{ data }` responses while performing local operations. It makes no account or notification network requests.
-- Passwords are salted bcrypt hashes at cost 10, using secure random values from SDK-compatible `expo-crypto`.
-- Sessions restore offline until logout or account deletion. The current account record determines its role; registration and profile forms cannot grant privileged roles.
-- Profile edits, notifications, unread counts, and saved routes survive restarts. Notifications and saved routes are scoped to their user.
-- Account deletion removes its related data and session while preserving Officer incidents. The built-in Officer account's credentials, role, and deletion are protected.
-- Officer CRUD remains in `frontend/src/utils/OfficerStorage.ts`, under `@transit_incidents`. Two samples initialize only when this key is missing. Deleting the last alert preserves an empty list across restarts.
-- Storage operations are serialized. Invalid data and failed reads/writes report errors without overwriting stored contents.
-
-Obsolete backend sessions are discarded. Users registered in the earlier backend version must register locally again; Officer incidents are preserved. Data belongs to this device or browser installation and does not synchronize between devices. Clearing application data removes the database. Role checks restrict the prototype's normal app flow; AsyncStorage cannot protect against device-storage tampering.
-
-## Screens and styling
-
-Expo Router controls login, supporting screens, and Home, Routes, Tickets, Profile, and the conditional Officer tab. The alert form opens above the tabs. Existing theme tokens, Navbar, FormInput, Button, typography, padding, and cards remain the styling source.
-
-Officer CRUD provides Read, Create, Update, and Delete (**Resolve**). Its metric values are static prototype values; Delay Hotspots and Rerouting are informational. Password recovery is unavailable in this local prototype. Issue reports are saved locally rather than sent to a support service.
+1. Open **Home > Find Routes > Search Routes**. Search Colombo Fort to Kandy, open Bus 154's status, then view its arrival time. **Open Bus Map** lists all demo buses.
+2. Sign in locally, edit a profile, manage notifications, and add a sample saved route. Restart to check persistence.
+3. Start the backend, sign in through Tickets, choose a journey and seats/passenger count, and confirm a demo purchase. View the tickets and QR codes.
+4. Choose **Verify ticket QR** from Tickets and sign in with an online admin account. Preview a QR/manual token, then explicitly mark it used.
+5. Sign in locally as Officer. Create an alert, edit it, and choose **Resolve** to remove it.
 
 ## Validation
 
@@ -50,21 +78,28 @@ npm run typecheck
 npm test
 npx expo install --check
 npx expo export --platform all --output-dir dist
+cd ../backend
+npm run test:tickets
 ```
 
-See [frontend setup and offline checks](frontend/README.md) for demonstration steps and coverage.
+Checks on October 9, 2026 passed TypeScript, 183 frontend tests across 16 suites, and 19 backend tests. Web, Android, and iOS JavaScript exports passed for the restored bus demo. Export success is not native device testing.
 
-## Repository layout
+## Project structure
 
-| Directory | Purpose |
+| Path | Purpose |
 | --- | --- |
-| `frontend/src/app` | Expo Router stacks, tabs, and Officer routes |
-| `frontend/src/screens` | Passenger/account/support screens |
-| `frontend/src/components` | Shared visual controls |
-| `frontend/src/services` | Local account, session, notification, and route persistence |
-| `frontend/src/utils` | Local Officer incident storage |
-| `backend` | Express/MongoDB/JWT server for online tickets, seat availability, booking, and verification |
+| `frontend/src/app` | Expo Router pages and navigation |
+| `frontend/src/screens` | Passenger, bus, ticket, and Officer screens |
+| `frontend/src/components` | Shared controls, map, and ticket components |
+| `frontend/src/data` | Bus and fare demo data |
+| `frontend/src/services` | Local storage and online ticket clients |
+| `frontend/src/utils` | Officer storage and ticket helpers |
+| `backend` | Express API, MongoDB models, catalogue, and tests |
 
-The backend must run for online ticket features. Local account, profile, notification, saved-route and Officer operations remain offline. Backend setup is documented in [backend/README.md](backend/README.md).
+## Documentation and limitations
 
-Online ticket accounts are separate from local app accounts. Open Tickets ? Sign in to use your existing backend credentials or register an online ticket account. Configure EXPO_PUBLIC_API_URL in frontend/.env to your reachable backend origin. Your ticketing screens, seats, QR validation and demo payment methods remain available alongside the local features.
+- [Frontend setup and demonstration guide](frontend/README.md)
+- [Backend setup and booking API](backend/README.md)
+- [Ticketing design, verification, and limitations](TICKETING.md)
+
+Local records do not synchronize across installations. Clearing app storage removes them. Bus locations and ETAs are fixed demo values. Password recovery, live GPS tracking, real payments, and production role provisioning are outside the implemented scope. Officer metrics are static; support reports are saved locally.

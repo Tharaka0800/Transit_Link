@@ -1,8 +1,10 @@
-# TransitLink Frontend (Expo / React Native)
+# TransitLink Frontend
 
-TransitLink runs on Expo SDK 51. Accounts, sessions, profiles, notifications, saved routes, and Officer alerts use AsyncStorage exclusively. No backend URL, database configuration, or internet connection is needed for these operations.
+Expo SDK 51 / React Native app using Expo Router. It combines route and bus demonstrations, online tickets, local accounts, and Officer incident management. See the [project overview](../README.md) for full setup.
 
 ## Setup
+
+From the repository root:
 
 ```bash
 cd frontend
@@ -10,53 +12,86 @@ npm install
 npx expo start
 ```
 
-Press `a` for Android or `w` for web. Use an SDK 51-compatible Expo Go client or development build. Metro must be reachable to load the development bundle; the loaded app performs local account and Officer operations offline. Online tickets need a reachable backend. A standalone build can launch without Metro.
+Press `w` for web or `a` for an Android emulator. Use an SDK 51-compatible Expo Go client or development build. Rebuild custom native clients when adding native dependencies such as WebView or camera. Metro must be reachable to load the development bundle.
 
-The entry point is `expo-router/entry`. Routes live in `src/app`; existing screen implementations remain in `src/screens`. Tabs are Home, Routes, Tickets, Profile, and Officer for signed-in officers only. The alert form opens in the root stack above the tabs.
+The entry point is `expo-router/entry`; pages live in `src/app`. Tabs are Home, Routes, Tickets, Profile, and Officer for local officers only. Bus details, arrival times, ticket screens, and alert forms open above the tabs.
 
-## Offline authentication
+## Connectivity and accounts
 
-| Role | Email / username | Password |
+| Feature | Requirement |
+| --- | --- |
+| Local login, profiles, notifications, saved routes, support, Officer alerts | Device storage; no backend |
+| Route search, bus list, status, ETA | Bundled demo data; no backend |
+| Bus map | Internet for Leaflet and OpenStreetMap |
+| Online accounts, tickets, seats, QR verification | Reachable backend and MongoDB |
+
+Online ticket accounts have a separate JWT session. Registering locally does not register an online account. Local logout clears both sessions. Local Officer roles do not authorize backend QR verification.
+
+Follow [backend setup](../backend/README.md) for tickets. Set `EXPO_PUBLIC_API_URL` in `frontend/.env` to the backend origin without `/api`, then restart Expo:
+
+```dotenv
+EXPO_PUBLIC_API_URL=http://192.168.1.10:5000
+```
+
+Use your computer's LAN address for a phone. Defaults are `http://10.0.2.2:5000` on Android and `http://localhost:5000` on web/iOS simulator.
+
+## Local demo login
+
+| Role | Email | Password |
 | --- | --- | --- |
 | Passenger | `tharukee01@gmail.com` | `password123` |
 | Passenger | `passenger.demo@transitlink.lk` | `password123` |
 | Admin | `admin@transitlink.lk` | `admin123` |
 | Transport officer | `officer@transitlink.lk` | `OfficerDemo@2026` |
 
-Demo accounts initialize only when the database is missing. Registration creates passengers and checks required fields, unique email addresses, and unique non-empty phone numbers. Login accepts the existing email/phone field and verifies a salted bcrypt hash locally. Sessions persist until logout or account deletion.
+Accounts initialize only when the local database is missing. Registration creates passengers; login accepts email or phone. Sessions persist until logout or account deletion. Officers open SmartBus Dashboard directly; other roles open Home. The Officer tab and alert form reject other roles. Built-in Officer credentials, role, and deletion are protected.
 
-Officers open SmartBus Dashboard directly; passengers and admins open Home. The **Open Officer Dashboard** shortcut has been removed. Both Officer screens reject unauthorized direct links before mounting their contents, and the Officer tab is hidden for guests and other roles. The local account record supplies the role; profile forms cannot change it.
+## Routes, map, bus status, and ETA
 
-The built-in Officer account's email, password, role, and deletion are protected so these credentials remain available. Password recovery is unavailable in this local prototype; no reset email is sent.
+1. Open **Home > Find Routes > Search Routes**.
+2. Search **Colombo Fort** to **Kandy**. Filter by All, Express, or Normal. Unmatched locations show an empty result. Swap reverses the fields; reverse services are not included in this demo catalogue.
+3. Choose **View bus status** on Bus 154. Review the map, next stop, speed, seats, and ETA. Choose **View arrival time**.
+4. Return to Routes and choose **Open Bus Map** to see all three demo buses. Select a bus from the list for its details.
 
-## Local database and migration
+Coordinates, speeds, seat labels, and ETAs are fixed values in `src/data/buses.js`, without GPS updates. Maps use an iframe on web and WebView on native. Bus details remain available if external map resources fail. Results without corresponding bus data show that status is unavailable.
 
-`src/services/LocalAppStorage.ts` stores users, notifications, saved routes, and the active session in a versioned database at `@transitlink_app_v1`. `src/services/api.js` retains original service names and `{ data }` response shapes, but performs local operations. Passwords use asynchronous bcrypt at cost 10 with secure randomness from `expo-crypto`; plaintext passwords are not persisted.
+The existing Favourite Routes list remains available. Choose **+ > Add Sample** to save a sample route, tap it for details, or toggle its favourite status. Fare Information opens the separate demo calculator.
 
-Notifications and saved routes belong to the signed-in account. Profile edits, notification CRUD, unread counts, and route changes persist across restarts. Account deletion removes its related records and session while preserving Officer incidents. Remote default avatars use offline fallbacks. Help & Support reports are saved locally.
+## Digital tickets and payments
 
-Reads, initialization, and mutations are serialized. Malformed data and storage failures report errors without overwriting the existing data. Intentionally empty collections stay empty.
+1. Start the backend. Open **Tickets > Sign in** and register or use an online account.
+2. Choose **New Ticket**, a bus/train journey, and ticket type.
+3. For buses, choose **Choose bus & seats**, a departure, and up to 10 seats. For trains, choose passenger count and travel time.
+4. Review the quote, select Transit Smart Balance, Card, or Mobile Wallet, and confirm the demo purchase.
+5. View each passenger's ticket, reference, seat when applicable, and QR in My Tickets. Used/expired tickets appear in History.
+6. Choose **Verify ticket QR** from Tickets and sign in online as admin. Scan on native or enter the complete manual token. Preview does not consume a ticket; explicitly validate to mark it used.
 
-Obsolete backend sessions are discarded. Earlier backend users must register locally again; incident data remains intact. Accounts do not synchronize across devices or browsers. Clearing application data removes the local database. Access checks restrict normal app navigation rather than device-storage tampering.
+Seats use a 2+2 layout: white available, blue selected, grey occupied, green held by another booking. Availability refreshes every 15 seconds while the picker is open. Reviewing holds seats for up to five minutes; editing releases the hold. Each passenger receives an independent ticket and QR. Confirmation retries reuse the quote to avoid duplicate issuance.
 
-## Officer dashboard CRUD
+Payments collect no credentials or funds. Fares, schedules, and vehicles are demo data. Tickets require a live backend; offline ticket caching is not implemented. See [ticketing details](../TICKETING.md).
 
-Sign in as the Officer and demonstrate:
+## Local persistence
 
-1. **Read:** review persisted incidents, newest first.
-2. **Create:** choose **+ New Alert**, enter Bus ID, Route, and Delay Time, choose a status, then **Create Alert**.
-3. **Update:** choose **Edit**, change fields/status, then **Save Changes**.
-4. **Delete:** choose **Resolve** to remove an incident.
+Profiles, notifications, saved routes, and support reports persist on the device. Notifications and saved routes belong to the signed-in account. `src/services/LocalAppStorage.ts` uses `@transitlink_app_v1`; online sessions use `@transitlink_online_ticket_session`. Passwords use salted bcrypt hashes and secure randomness from `expo-crypto`.
 
-Incidents use `src/utils/OfficerStorage.ts` and the separate `@transit_incidents` key. Two samples initialize only when the key is missing, including Bus 154, CMB → KDY, 15m, URGENT. An intentionally stored `[]` stays empty after reload or restart.
+Account deletion removes related local records and session while preserving Officer incidents. Storage operations are serialized; malformed data and storage errors do not overwrite existing records. Empty collections remain empty. Obsolete backend sessions are discarded; older backend users must register locally for local features.
 
-New incidents receive unique IDs and numeric creation timestamps; edits preserve both. Updating an unknown ID reports an error; deleting an absent ID is harmless. Loading, focus refresh, retry/empty states, form validation, duplicate-action protection, and stale-response guards remain in place.
+Data does not synchronize across installations. Clearing storage removes it. Role checks protect normal navigation rather than device-storage tampering. Password recovery sends no email; support reports stay local.
 
-Screens reuse the existing theme, Navbar, FormInput, and Button. Status badges use shared red, orange, and green tokens with text labels. Metric values remain static; Delay Hotspots and Rerouting are informational.
+## Officer incidents
 
-Confirmation and validation dialogs use native alerts on Android/iOS and a shared themed modal on web. Logout, account deletion, and saved-route choices work on each platform.
+Sign in locally as `officer@transitlink.lk`:
+
+1. Read persisted incidents, newest first.
+2. Choose **+ New Alert**, enter Bus ID, Route, Delay Time, and status, then **Create Alert**.
+3. Choose **Edit**, change fields/status, then **Save Changes**.
+4. Choose **Resolve** to delete an incident.
+
+`src/utils/OfficerStorage.ts` uses `@transit_incidents`. Samples initialize only when the key is missing. Deleting all alerts preserves an empty list after restart. Edits retain IDs and timestamps. Screens include validation, retries, and duplicate-action protection. Metrics are static; Delay Hotspots and Rerouting are informational.
 
 ## Validation
+
+Run from `frontend`:
 
 ```bash
 npm run typecheck
@@ -65,67 +100,29 @@ npx expo install --check
 npx expo export --platform all --output-dir dist
 ```
 
-Tests cover initialization, authentication, role restrictions, sessions, profile CRUD, per-user notifications and saved routes, corrupt storage, concurrency, storage failures, and recovery. Officer tests cover seeding, ordering, unique IDs, immutable metadata, partial edits, deletion, empty-list persistence, focus refresh, validation, missing IDs, duplicate actions, and stale async results.
+On October 9, 2026, TypeScript and all 183 tests across 16 suites passed. Web, Android, and iOS exports passed for the bus integration. Tests cover local accounts/storage, Officer CRUD/access, ticket flows/seats, route search, selected-bus navigation, and invalid bus IDs.
 
-Offline branch checks recorded on 2026-10-08, before ticket integration:
+Exports validate bundling, not device behavior. The restored map still needs manual browser/device checks for external loading. Check camera permissions on target devices.
 
-- TypeScript checking, all 148 tests across 8 suites, SDK dependency checks, and Android/iOS/web exports passed on Expo 51.0.39.
-- The production web build passed 34 browser scenarios with nonlocal requests blocked and no API requests. Login, dashboard, and form layouts fit 320px and 390px widths.
-- Pixel 7 emulator testing passed registration, passenger login/logout, direct Officer login, and incident Create/Read/Update/Resolve with no active internet connection or account backend. A JavaScript/activity restart restored the Officer session and edited alert.
-- Native iOS device testing was unavailable in the Windows environment. Full native process restart was not tested because automatic approval review rejected the ADB force-stop command as "blocked by policy"; persistence passed a JavaScript/activity restart. Native empty-list testing was skipped to preserve existing incidents; browser and unit tests verified it. Development restarts still need Metro to serve the bundle; local authentication and data operations do not.
+Manual checks:
 
-Manual Pixel 7 offline checks:
-
-1. Load the app with Metro available, then disable internet access on the device.
-2. Register a passenger. Verify Home opens and the Officer tab is absent.
-3. Restart, check session restoration, and change the profile, notifications, and saved routes.
-4. Log out and sign in as Officer. Verify the dashboard opens directly.
-5. Create, read, edit, and resolve an alert. Restart to verify persistence. Resolve every alert and restart to verify the empty list remains.
-6. As a guest or passenger, attempt direct links to both Officer screens and verify access is denied.
-7. Check 320px/390px widths, keyboard avoidance, safe areas, and save/back behavior. Native keyboard and gesture checks require a device or emulator.
-
-## Online ticket accounts and backend
-
-Ticket booking uses src/services/ticketApi.ts with a separate server JWT session. From Tickets, choose Sign in and use your existing backend credentials, or create an online ticket account. This does not replace the local profile or grant a local Officer role. Local logout also clears the online ticket session. Set EXPO_PUBLIC_API_URL in frontend/.env to the reachable backend origin, without /api, and restart Expo. Physical phones must use the computer LAN address, not localhost. Run npm start in backend. Use Verify ticket QR from Tickets and sign in with an online admin account for scanning.
-
-Local accounts and online ticket accounts are separate; creating one does not create the other. Existing backend tickets remain linked to their original backend account.
-
-## Bus seat booking
-
-Open Tickets → New Ticket, choose a bus journey and ticket type, then choose **Choose bus & seats**. Select a demo departure and tap available seats; each selected seat counts as one passenger, up to 10. The screen uses a 2+2 layout with an aisle, driver cabin, row labels, and window-seat labels. White means available, blue selected, grey occupied, and green temporarily held by another booking.
-
-Availability refreshes every 15 seconds while the picker is open. Selection changes update the total; switching departures clears the selection. Reviewing holds seats for up to five minutes, and editing releases the hold. Confirmation creates a separate ticket and QR for each selected seat. Seat numbers appear in My Tickets and ticket details. Restart the backend and reload Expo Go after installing this feature. The schedule, vehicle layout, and fares are demo data; payment is still simulated.
-
-## Demo payment methods
-
-The ticket review screen includes a payment-method selector for Transit Smart Balance, Card, and Mobile Wallet. These options simulate checkout and collect no payment credentials or funds. The selected method is recorded on each ticket and cannot change during an uncertain confirmation retry. Payment Information explains the demo limitation; saved cards, top-ups, wallet authorisation, and promo codes require future payment-provider integration.
-
-## Auth storage
-
-Local sessions use LocalAppStorage. Online ticket sessions use a separate AsyncStorage key, @transitlink_online_ticket_session. Local Officer roles do not authorize backend ticket verification.
-
-## Member 1 map and route demo
-
-From **Home → Find Routes**, choose **Search Routes** or **Open Bus Map**. Saved routes and the fare calculator remain available.
-
-1. Search **Colombo Fort → Kandy**. Filter by All, Express, or Normal. Only matching demo routes appear; other locations show an empty result.
-2. Choose **View bus status** on Bus 154, or choose any bus from the map list.
-3. Review the map, next stop, speed, seats, and demo ETA. Choose **View arrival time** for the selected bus's ETA screen.
-4. Use Back to return to the previous screen. Saved routes, local accounts, Officer alerts, and online ticket booking retain their existing flows.
-
-These screens restore Member 1's original prototype data. Bus coordinates, speeds, seat labels, and ETAs are fixed demo values. Map tiles use OpenStreetMap with Leaflet and require internet access; the demo list and details do not need the backend. On native devices the map uses Expo SDK 51's compatible `react-native-webview`; run `npm install` and restart Expo after pulling this change. Custom development builds need rebuilding for the new native dependency.
+1. Search routes, try empty results, load the map, and navigate from bus status to ETA.
+2. Sign in locally and verify profile, notification, and saved-route persistence after restart.
+3. Create/edit/resolve an Officer alert and verify persistence. Other roles should have no Officer tab.
+4. Run the backend, book seats, open a QR, and verify it with an online admin account.
+5. Check narrow screens, keyboard behavior, and Back navigation on target devices.
 
 ## Screen files
 
-| Screen | File |
-|--------|------|
+| Area | File |
+| --- | --- |
 | Login / Register / Forgot | `src/screens/Login.js` |
 | Home | `src/screens/Home.js` |
+| Saved routes | `src/screens/RoutesScreen.js` |
+| Search / Map / Status / ETA | `src/screens/BusDemoScreens.js` |
 | Profile / Edit / Settings | `src/screens/Profile.js` |
-| Notifications | `src/screens/Notifications.js` |
-| Help & Support | `src/screens/HelpSupport.js` |
-
-## Demo login
-
-- Email: `tharukee01@gmail.com`
-- Password: `password123`
+| Notifications / Support | `src/screens/Notifications.js`, `src/screens/HelpSupport.js` |
+| Fare calculator | `src/screens/FareInformation.js` |
+| Ticket list / Purchase / Details | `src/screens/MyTicketsScreen.tsx`, `src/screens/TicketPurchaseScreen.tsx`, `src/screens/TicketDetailsScreen.tsx` |
+| Online login / QR verification | `src/screens/TicketLoginScreen.tsx`, `src/screens/TicketVerificationScreen.tsx` |
+| Officer / Alert form | `src/app/(tabs)/officer-dashboard/index.tsx`, `src/app/officer-dashboard/add-alert.tsx` |

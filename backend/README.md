@@ -1,4 +1,4 @@
-# TransitLink account and notification backend
+# TransitLink Backend
 
 This Express server powers online ticket accounts, journey search, bus departures, seat holds, bookings, and QR verification using MongoDB and JWT authentication. The frontend uses local AsyncStorage for its offline profiles, notifications, saved routes, and Officer incidents. **The backend must run for online ticket features.**
 
@@ -16,6 +16,8 @@ Demo login: `tharukee01@gmail.com` / `password123`.
 Run `npm run seed` to reset and repopulate the configured demo database. This command clears the existing demo collections.
 
 ## Routes
+
+This table covers account and notification endpoints. Ticket endpoints are documented in [TICKETING.md](../TICKETING.md#api); seat endpoints are described below. Online QR verification uses the seeded admin account (`admin@transitlink.lk` / `admin123`), available in memory mode or with `AUTO_SEED=true`. Local Officer login does not authorize this API.
 
 | Method | Path | Purpose |
 | --- | --- | --- |
@@ -59,3 +61,11 @@ Restart the backend after installing this change. Startup preserves existing tic
 Bus fare quotes require a `tripId` and a `seats` array with 1–10 distinct labels. The server derives passenger count from the seats, uses the trip departure time, and holds the entire selection atomically until quote expiry (up to five minutes). Occupied seats and unexpired holds cannot be selected by another booking. Expired holds become available automatically without waiting for cleanup.
 
 Confirmation atomically assigns the held seats to the booking before issuing one ticket/QR per seat. Safe retries recover interrupted issuance. `POST /api/tickets/quotes/:quoteId/release` releases the signed-in user's unconfirmed hold when editing; it cannot release booked seats. Ticket responses include `seatLabel`, `busName`, and `tripId`. Train booking retains the passenger counter and its existing travel-time selection.
+
+## Validation
+
+```bash
+npm run test:tickets
+```
+
+All 19 backend tests passed on October 9, 2026. Integration tests use a separate temporary MongoDB database and do not connect to the configured team database. They cover authentication, ownership, quotes, group issuance, seat holds, retries, demo payments, and single-use QR redemption.
