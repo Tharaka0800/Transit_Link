@@ -158,6 +158,9 @@ function OfficerDashboardContent() {
             <Button style={styles.newButton} onPress={() => router.push('/officer-dashboard/add-alert')}>
               + New Alert
             </Button>
+            <Button variant="secondary" style={styles.newButton} onPress={() => router.push('/officer-dashboard/verify-ticket')}>
+              Verify Ticket
+            </Button>
             <Text style={styles.sectionTitle}>Incident Alerts</Text>
             {actionError && <Text accessibilityRole="alert" style={styles.error}>{actionError}</Text>}
             {loadError && (

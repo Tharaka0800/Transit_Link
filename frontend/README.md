@@ -10,7 +10,7 @@ npm install
 npx expo start
 ```
 
-Press `a` for Android or `w` for web. Use an SDK 51-compatible Expo Go client or development build. Metro must be reachable to load the development bundle; the loaded app performs authentication and data operations offline. A standalone build can launch without Metro.
+Press `a` for Android or `w` for web. Use an SDK 51-compatible Expo Go client or development build. Metro must be reachable to load the development bundle; the loaded app performs local account and Officer operations offline. Online tickets need a reachable backend. A standalone build can launch without Metro.
 
 The entry point is `expo-router/entry`. Routes live in `src/app`; existing screen implementations remain in `src/screens`. Tabs are Home, Routes, Tickets, Profile, and Officer for signed-in officers only. The alert form opens in the root stack above the tabs.
 
@@ -67,7 +67,7 @@ npx expo export --platform all --output-dir dist
 
 Tests cover initialization, authentication, role restrictions, sessions, profile CRUD, per-user notifications and saved routes, corrupt storage, concurrency, storage failures, and recovery. Officer tests cover seeding, ordering, unique IDs, immutable metadata, partial edits, deletion, empty-list persistence, focus refresh, validation, missing IDs, duplicate actions, and stale async results.
 
-Verified on 2026-10-08:
+Offline branch checks recorded on 2026-10-08, before ticket integration:
 
 - TypeScript checking, all 148 tests across 8 suites, SDK dependency checks, and Android/iOS/web exports passed on Expo 51.0.39.
 - The production web build passed 34 browser scenarios with nonlocal requests blocked and no API requests. Login, dashboard, and form layouts fit 320px and 390px widths.
@@ -84,4 +84,48 @@ Manual Pixel 7 offline checks:
 6. As a guest or passenger, attempt direct links to both Officer screens and verify access is denied.
 7. Check 320px/390px widths, keyboard avoidance, safe areas, and save/back behavior. Native keyboard and gesture checks require a device or emulator.
 
-The retained `backend` directory is reference code and is unused by this frontend.
+## Online ticket accounts and backend
+
+Ticket booking uses src/services/ticketApi.ts with a separate server JWT session. From Tickets, choose Sign in and use your existing backend credentials, or create an online ticket account. This does not replace the local profile or grant a local Officer role. Local logout also clears the online ticket session. Set EXPO_PUBLIC_API_URL in frontend/.env to the reachable backend origin, without /api, and restart Expo. Physical phones must use the computer LAN address, not localhost. Run npm start in backend. Use Verify ticket QR from Tickets and sign in with an online admin account for scanning.
+
+Local accounts and online ticket accounts are separate; creating one does not create the other. Existing backend tickets remain linked to their original backend account.
+
+## Bus seat booking
+
+Open Tickets → New Ticket, choose a bus journey and ticket type, then choose **Choose bus & seats**. Select a demo departure and tap available seats; each selected seat counts as one passenger, up to 10. The screen uses a 2+2 layout with an aisle, driver cabin, row labels, and window-seat labels. White means available, blue selected, grey occupied, and green temporarily held by another booking.
+
+Availability refreshes every 15 seconds while the picker is open. Selection changes update the total; switching departures clears the selection. Reviewing holds seats for up to five minutes, and editing releases the hold. Confirmation creates a separate ticket and QR for each selected seat. Seat numbers appear in My Tickets and ticket details. Restart the backend and reload Expo Go after installing this feature. The schedule, vehicle layout, and fares are demo data; payment is still simulated.
+
+## Demo payment methods
+
+The ticket review screen includes a payment-method selector for Transit Smart Balance, Card, and Mobile Wallet. These options simulate checkout and collect no payment credentials or funds. The selected method is recorded on each ticket and cannot change during an uncertain confirmation retry. Payment Information explains the demo limitation; saved cards, top-ups, wallet authorisation, and promo codes require future payment-provider integration.
+
+## Auth storage
+
+Local sessions use LocalAppStorage. Online ticket sessions use a separate AsyncStorage key, @transitlink_online_ticket_session. Local Officer roles do not authorize backend ticket verification.
+
+## Member 1 map and route demo
+
+From **Home → Find Routes**, choose **Search Routes** or **Open Bus Map**. Saved routes and the fare calculator remain available.
+
+1. Search **Colombo Fort → Kandy**. Filter by All, Express, or Normal. Only matching demo routes appear; other locations show an empty result.
+2. Choose **View bus status** on Bus 154, or choose any bus from the map list.
+3. Review the map, next stop, speed, seats, and demo ETA. Choose **View arrival time** for the selected bus's ETA screen.
+4. Use Back to return to the previous screen. Saved routes, local accounts, Officer alerts, and online ticket booking retain their existing flows.
+
+These screens restore Member 1's original prototype data. Bus coordinates, speeds, seat labels, and ETAs are fixed demo values. Map tiles use OpenStreetMap with Leaflet and require internet access; the demo list and details do not need the backend. On native devices the map uses Expo SDK 51's compatible `react-native-webview`; run `npm install` and restart Expo after pulling this change. Custom development builds need rebuilding for the new native dependency.
+
+## Screen files
+
+| Screen | File |
+|--------|------|
+| Login / Register / Forgot | `src/screens/Login.js` |
+| Home | `src/screens/Home.js` |
+| Profile / Edit / Settings | `src/screens/Profile.js` |
+| Notifications | `src/screens/Notifications.js` |
+| Help & Support | `src/screens/HelpSupport.js` |
+
+## Demo login
+
+- Email: `tharukee01@gmail.com`
+- Password: `password123`

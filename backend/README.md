@@ -1,6 +1,6 @@
 # TransitLink account and notification backend
 
-This retained Express server implements the earlier account and notification features using MongoDB and JWT authentication. It is reference code: the current frontend stores accounts, sessions, profiles, notifications, saved routes, and Officer incidents locally using AsyncStorage. **This backend does not need to run for the current app.**
+This Express server powers online ticket accounts, journey search, bus departures, seat holds, bookings, and QR verification using MongoDB and JWT authentication. The frontend uses local AsyncStorage for its offline profiles, notifications, saved routes, and Officer incidents. **The backend must run for online ticket features.**
 
 ## Setup
 
@@ -32,4 +32,30 @@ Run `npm run seed` to reset and repopulate the configured demo database. This co
 
 Profile and notification routes require `Authorization: Bearer <login token>`. Their controllers, models, and middleware retain the existing behavior.
 
-These endpoints are unused by the current frontend, which has no backend URL setting. Sign in locally with `officer@transitlink.lk` / `OfficerDemo@2026` to open the Officer dashboard. All CRUD operations work offline. Setup, migration, and validation commands are documented in [frontend/README.md](../frontend/README.md).
+Set EXPO_PUBLIC_API_URL in frontend/.env to this server origin (without /api) for online ticket accounts and booking. Sign in locally as officer@transitlink.lk to use offline Officer CRUD. Online QR verification requires the backend admin account. Offline profile and notification screens do not call this server.
+
+## Demo ticket journeys
+
+`data/ticket-journeys.demo.json` contains 26 sample bus and train journeys, including return routes and destinations such as Kandy, Galle, Negombo, Matara, Kurunegala, Badulla, Moratuwa, and Jaffna. Fares and durations are university demo values, not published operator prices or timetables.
+
+For persistent MongoDB, add or update these journeys without resetting accounts or tickets:
+
+```bash
+npm run tickets:import -- data/ticket-journeys.demo.json
+```
+
+With `USE_MEMORY_DB=true`, this catalogue loads automatically when the backend starts. Its database resets on restart. Journey listing and ticket booking require a signed-in session.
+
+## Group bookings
+
+Fare quotes accept an integer `passengerCount` from 1 to 10 (default 1). `fareMinor` is the fare per passenger; `totalFareMinor` is calculated by the server. Confirmation returns a `tickets` array with an independent reference and QR for each passenger, plus the first `ticket` for compatibility. Each ticket includes its booking ID and passenger number. All tickets are owned by the booking account; companion names and age-based fares are not collected yet.
+
+Restart the backend after installing this change. Startup preserves existing tickets and replaces the unique quote index with a unique quote/passenger index. Retries reuse the same quote, recover interrupted issuance, and avoid duplicate tickets. Payment remains a university demo.
+
+## Bus seat selection
+
+`GET /api/tickets/journeys/:journeyId/trips` returns bus departures with live seat status and availability counts. The demo has 20 seats in five rows (A/B, aisle, C/D), and sample departures at 08:00, 12:00, 16:00, and 20:00 Asia/Colombo time over the next seven days. These are simulated services, not operator timetables. Trip records are created once per journey/departure and persisted in MongoDB.
+
+Bus fare quotes require a `tripId` and a `seats` array with 1–10 distinct labels. The server derives passenger count from the seats, uses the trip departure time, and holds the entire selection atomically until quote expiry (up to five minutes). Occupied seats and unexpired holds cannot be selected by another booking. Expired holds become available automatically without waiting for cleanup.
+
+Confirmation atomically assigns the held seats to the booking before issuing one ticket/QR per seat. Safe retries recover interrupted issuance. `POST /api/tickets/quotes/:quoteId/release` releases the signed-in user's unconfirmed hold when editing; it cannot release booked seats. Ticket responses include `seatLabel`, `busName`, and `tripId`. Train booking retains the passenger counter and its existing travel-time selection.

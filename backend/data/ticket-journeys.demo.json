@@ -1,0 +1,392 @@
+[
+  {
+    "code": "DEMO-B-KDY",
+    "mode": "Bus",
+    "from": "Colombo Fort",
+    "to": "Kandy",
+    "durationMinutes": 180,
+    "validityMinutes": 300,
+    "ticketTypes": [
+      {
+        "code": "standard",
+        "label": "Standard · Single journey",
+        "fareMinor": 32000
+      }
+    ]
+  },
+  {
+    "code": "DEMO-T-KDY",
+    "mode": "Train",
+    "from": "Colombo Fort",
+    "to": "Kandy",
+    "durationMinutes": 150,
+    "validityMinutes": 300,
+    "ticketTypes": [
+      {
+        "code": "standard",
+        "label": "Standard · Single journey",
+        "fareMinor": 45000
+      }
+    ]
+  },
+  {
+    "code": "DEMO-B-GLE",
+    "mode": "Bus",
+    "from": "Colombo Fort",
+    "to": "Galle",
+    "durationMinutes": 135,
+    "validityMinutes": 240,
+    "ticketTypes": [
+      {
+        "code": "standard",
+        "label": "Standard · Single journey",
+        "fareMinor": 28000
+      }
+    ]
+  },
+  {
+    "code": "DEMO-T-GLE",
+    "mode": "Train",
+    "from": "Colombo Fort",
+    "to": "Galle",
+    "durationMinutes": 150,
+    "validityMinutes": 240,
+    "ticketTypes": [
+      {
+        "code": "standard",
+        "label": "Standard · Single journey",
+        "fareMinor": 40000
+      }
+    ]
+  },
+  {
+    "code": "DEMO-B-MHG",
+    "mode": "Bus",
+    "from": "Maharagama",
+    "to": "Pettah",
+    "durationMinutes": 45,
+    "validityMinutes": 120,
+    "ticketTypes": [
+      {
+        "code": "standard",
+        "label": "Standard · Single journey",
+        "fareMinor": 6000
+      }
+    ]
+  },
+  {
+    "code": "DEMO-B-NGB",
+    "mode": "Bus",
+    "from": "Negombo",
+    "to": "Colombo Fort",
+    "durationMinutes": 90,
+    "validityMinutes": 180,
+    "ticketTypes": [
+      {
+        "code": "standard",
+        "label": "Standard · Single journey",
+        "fareMinor": 15000
+      }
+    ]
+  },
+  {
+    "code": "DEMO-T-NGB",
+    "mode": "Train",
+    "from": "Negombo",
+    "to": "Colombo Fort",
+    "durationMinutes": 65,
+    "validityMinutes": 180,
+    "ticketTypes": [
+      {
+        "code": "standard",
+        "label": "Standard · Single journey",
+        "fareMinor": 22000
+      }
+    ]
+  },
+  {
+    "code": "DEMO-B-KDY-RETURN",
+    "mode": "Bus",
+    "from": "Kandy",
+    "to": "Colombo Fort",
+    "durationMinutes": 180,
+    "validityMinutes": 300,
+    "ticketTypes": [
+      {
+        "code": "standard",
+        "label": "Standard · Single journey",
+        "fareMinor": 32000
+      }
+    ]
+  },
+  {
+    "code": "DEMO-T-KDY-RETURN",
+    "mode": "Train",
+    "from": "Kandy",
+    "to": "Colombo Fort",
+    "durationMinutes": 150,
+    "validityMinutes": 300,
+    "ticketTypes": [
+      {
+        "code": "standard",
+        "label": "Standard · Single journey",
+        "fareMinor": 45000
+      }
+    ]
+  },
+  {
+    "code": "DEMO-B-GLE-RETURN",
+    "mode": "Bus",
+    "from": "Galle",
+    "to": "Colombo Fort",
+    "durationMinutes": 135,
+    "validityMinutes": 240,
+    "ticketTypes": [
+      {
+        "code": "standard",
+        "label": "Standard · Single journey",
+        "fareMinor": 28000
+      }
+    ]
+  },
+  {
+    "code": "DEMO-T-GLE-RETURN",
+    "mode": "Train",
+    "from": "Galle",
+    "to": "Colombo Fort",
+    "durationMinutes": 150,
+    "validityMinutes": 240,
+    "ticketTypes": [
+      {
+        "code": "standard",
+        "label": "Standard · Single journey",
+        "fareMinor": 40000
+      }
+    ]
+  },
+  {
+    "code": "DEMO-B-MHG-RETURN",
+    "mode": "Bus",
+    "from": "Pettah",
+    "to": "Maharagama",
+    "durationMinutes": 45,
+    "validityMinutes": 120,
+    "ticketTypes": [
+      {
+        "code": "standard",
+        "label": "Standard · Single journey",
+        "fareMinor": 6000
+      }
+    ]
+  },
+  {
+    "code": "DEMO-B-NGB-RETURN",
+    "mode": "Bus",
+    "from": "Colombo Fort",
+    "to": "Negombo",
+    "durationMinutes": 90,
+    "validityMinutes": 180,
+    "ticketTypes": [
+      {
+        "code": "standard",
+        "label": "Standard · Single journey",
+        "fareMinor": 15000
+      }
+    ]
+  },
+  {
+    "code": "DEMO-T-NGB-RETURN",
+    "mode": "Train",
+    "from": "Colombo Fort",
+    "to": "Negombo",
+    "durationMinutes": 65,
+    "validityMinutes": 180,
+    "ticketTypes": [
+      {
+        "code": "standard",
+        "label": "Standard · Single journey",
+        "fareMinor": 22000
+      }
+    ]
+  },
+  {
+    "code": "DEMO-B-MTR",
+    "mode": "Bus",
+    "from": "Colombo Fort",
+    "to": "Matara",
+    "durationMinutes": 210,
+    "validityMinutes": 330,
+    "ticketTypes": [
+      {
+        "code": "standard",
+        "label": "Standard ? Single journey",
+        "fareMinor": 65000
+      }
+    ]
+  },
+  {
+    "code": "DEMO-B-MTR-RETURN",
+    "mode": "Bus",
+    "from": "Matara",
+    "to": "Colombo Fort",
+    "durationMinutes": 210,
+    "validityMinutes": 330,
+    "ticketTypes": [
+      {
+        "code": "standard",
+        "label": "Standard ? Single journey",
+        "fareMinor": 65000
+      }
+    ]
+  },
+  {
+    "code": "DEMO-T-MTR",
+    "mode": "Train",
+    "from": "Colombo Fort",
+    "to": "Matara",
+    "durationMinutes": 240,
+    "validityMinutes": 360,
+    "ticketTypes": [
+      {
+        "code": "standard",
+        "label": "Standard ? Single journey",
+        "fareMinor": 50000
+      }
+    ]
+  },
+  {
+    "code": "DEMO-T-MTR-RETURN",
+    "mode": "Train",
+    "from": "Matara",
+    "to": "Colombo Fort",
+    "durationMinutes": 240,
+    "validityMinutes": 360,
+    "ticketTypes": [
+      {
+        "code": "standard",
+        "label": "Standard ? Single journey",
+        "fareMinor": 50000
+      }
+    ]
+  },
+  {
+    "code": "DEMO-B-KRG",
+    "mode": "Bus",
+    "from": "Colombo Fort",
+    "to": "Kurunegala",
+    "durationMinutes": 150,
+    "validityMinutes": 270,
+    "ticketTypes": [
+      {
+        "code": "standard",
+        "label": "Standard ? Single journey",
+        "fareMinor": 40000
+      }
+    ]
+  },
+  {
+    "code": "DEMO-B-KRG-RETURN",
+    "mode": "Bus",
+    "from": "Kurunegala",
+    "to": "Colombo Fort",
+    "durationMinutes": 150,
+    "validityMinutes": 270,
+    "ticketTypes": [
+      {
+        "code": "standard",
+        "label": "Standard ? Single journey",
+        "fareMinor": 40000
+      }
+    ]
+  },
+  {
+    "code": "DEMO-T-BDL",
+    "mode": "Train",
+    "from": "Colombo Fort",
+    "to": "Badulla",
+    "durationMinutes": 600,
+    "validityMinutes": 720,
+    "ticketTypes": [
+      {
+        "code": "standard",
+        "label": "Standard ? Single journey",
+        "fareMinor": 120000
+      }
+    ]
+  },
+  {
+    "code": "DEMO-T-BDL-RETURN",
+    "mode": "Train",
+    "from": "Badulla",
+    "to": "Colombo Fort",
+    "durationMinutes": 600,
+    "validityMinutes": 720,
+    "ticketTypes": [
+      {
+        "code": "standard",
+        "label": "Standard ? Single journey",
+        "fareMinor": 120000
+      }
+    ]
+  },
+  {
+    "code": "DEMO-B-MRT",
+    "mode": "Bus",
+    "from": "Pettah",
+    "to": "Moratuwa",
+    "durationMinutes": 60,
+    "validityMinutes": 150,
+    "ticketTypes": [
+      {
+        "code": "standard",
+        "label": "Standard ? Single journey",
+        "fareMinor": 12000
+      }
+    ]
+  },
+  {
+    "code": "DEMO-B-MRT-RETURN",
+    "mode": "Bus",
+    "from": "Moratuwa",
+    "to": "Pettah",
+    "durationMinutes": 60,
+    "validityMinutes": 150,
+    "ticketTypes": [
+      {
+        "code": "standard",
+        "label": "Standard ? Single journey",
+        "fareMinor": 12000
+      }
+    ]
+  },
+  {
+    "code": "DEMO-T-JFN",
+    "mode": "Train",
+    "from": "Colombo Fort",
+    "to": "Jaffna",
+    "durationMinutes": 480,
+    "validityMinutes": 600,
+    "ticketTypes": [
+      {
+        "code": "standard",
+        "label": "Standard ? Single journey",
+        "fareMinor": 150000
+      }
+    ]
+  },
+  {
+    "code": "DEMO-T-JFN-RETURN",
+    "mode": "Train",
+    "from": "Jaffna",
+    "to": "Colombo Fort",
+    "durationMinutes": 480,
+    "validityMinutes": 600,
+    "ticketTypes": [
+      {
+        "code": "standard",
+        "label": "Standard ? Single journey",
+        "fareMinor": 150000
+      }
+    ]
+  }
+]

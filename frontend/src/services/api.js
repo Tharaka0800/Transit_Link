@@ -1,4 +1,5 @@
 import * as local from './LocalAppStorage';
+import { clearTicketAuth } from './ticketApi';
 
 // Keep the response shapes used by teammates' screens while performing every
 // operation locally. No server URL, HTTP client, or internet connection is used.
@@ -6,7 +7,10 @@ export const registerUser = async (data) => ({ data: await local.registerUser(da
 export const loginUser = async (data) => ({ data: await local.loginUser(data) });
 export const getUserProfile = async () => ({ data: await local.getUserProfile() });
 export const updateUserProfile = async (data) => ({ data: await local.updateUserProfile(data) });
-export const deleteUserProfile = async () => ({ data: await local.deleteUserProfile() });
+export const deleteUserProfile = async () => {
+  await clearTicketAuth();
+  return { data: await local.deleteUserProfile() };
+};
 
 export const getNotifications = async (params) => ({ data: await local.getNotifications(params) });
 export const createNotification = async (data) => ({ data: await local.createNotification(data) });
@@ -18,7 +22,10 @@ export const addSampleSavedRoute = async () => ({ data: await local.addSampleSav
 export const toggleSavedRoute = async (id) => ({ data: await local.toggleSavedRoute(id) });
 
 export const saveAuth = local.saveAuth;
-export const clearAuth = local.clearAuth;
+export const clearAuth = async () => {
+  await clearTicketAuth();
+  await local.clearAuth();
+};
 export const getStoredUser = local.getStoredUser;
 export const getToken = local.getToken;
 export const getAuthSession = local.getAuthSession;
