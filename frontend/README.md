@@ -104,7 +104,18 @@ The ticket review screen includes a payment-method selector for Transit Smart Ba
 
 Local sessions use LocalAppStorage. Online ticket sessions use a separate AsyncStorage key, @transitlink_online_ticket_session. Local Officer roles do not authorize backend ticket verification.
 
-## Screens
+## Member 1 map and route demo
+
+From **Home → Find Routes**, choose **Search Routes** or **Open Bus Map**. Saved routes and the fare calculator remain available.
+
+1. Search **Colombo Fort → Kandy**. Filter by All, Express, or Normal. Only matching demo routes appear; other locations show an empty result.
+2. Choose **View bus status** on Bus 154, or choose any bus from the map list.
+3. Review the map, next stop, speed, seats, and demo ETA. Choose **View arrival time** for the selected bus's ETA screen.
+4. Use Back to return to the previous screen. Saved routes, local accounts, Officer alerts, and online ticket booking retain their existing flows.
+
+These screens restore Member 1's original prototype data. Bus coordinates, speeds, seat labels, and ETAs are fixed demo values. Map tiles use OpenStreetMap with Leaflet and require internet access; the demo list and details do not need the backend. On native devices the map uses Expo SDK 51's compatible `react-native-webview`; run `npm install` and restart Expo after pulling this change. Custom development builds need rebuilding for the new native dependency.
+
+## Screen files
 
 | Screen | File |
 |--------|------|

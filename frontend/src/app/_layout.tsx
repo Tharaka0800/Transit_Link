@@ -30,6 +30,10 @@ export default function RootLayout() {
           <Stack.Screen name="notifications" />
           <Stack.Screen name="help-support" />
           <Stack.Screen name="fare-information" />
+          <Stack.Screen name="route-search" />
+          <Stack.Screen name="bus-map" />
+          <Stack.Screen name="bus-status" />
+          <Stack.Screen name="bus-eta" />
           <Stack.Screen name="officer-dashboard/add-alert" />
           <Stack.Screen name="officer-dashboard/verify-ticket" />
           <Stack.Screen name="ticketing/purchase" />
