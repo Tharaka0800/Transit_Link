@@ -33,20 +33,20 @@ export default function TicketLoginScreen() {
     finally { pending.current = false; setBusy(false); }
   };
   return <SafeAreaView style={styles.safe}>
-    <Navbar title="Online ticket account" onBack={() => { if (!busy) router.replace('/(tabs)/tickets'); }} />
+    <Navbar title="Local ticket account" onBack={() => { if (!busy) router.replace('/(tabs)/tickets'); }} />
     <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
         <Text style={styles.title}>{register ? 'Create a ticket account' : 'Sign in for tickets'}</Text>
-        <Text style={styles.description}>Bookings and seat availability use your online ticket account. Your existing backend account still works here. Local profiles and Officer alerts remain available offline.</Text>
+        <Text style={styles.description}>Tickets and demo seats are saved on this device. Ticket accounts are separate from your main app login. Server accounts are not imported. For local verification, sign in as admin@transitlink.lk with admin123.</Text>
         {register && <>
           <FormInput label="Full name" value={fullName} onChangeText={setFullName} editable={!busy} />
           <FormInput label="Phone number" value={phone} onChangeText={setPhone} keyboardType="phone-pad" editable={!busy} />
         </>}
-        <FormInput label="Email" accessibilityLabel="Online ticket email" value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" editable={!busy} />
-        <FormInput label="Password" accessibilityLabel="Online ticket password" value={password} onChangeText={setPassword} secureTextEntry editable={!busy} />
+        <FormInput label="Email" accessibilityLabel="Ticket email" value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" editable={!busy} />
+        <FormInput label="Password" accessibilityLabel="Ticket password" value={password} onChangeText={setPassword} secureTextEntry editable={!busy} />
         {error && <Text style={styles.error} accessibilityRole="alert">{error}</Text>}
         <Button loading={busy} onPress={() => { void submit(); }}>{register ? 'Create ticket account' : 'Sign in to tickets'}</Button>
-        <Button style={styles.secondary} variant="secondary" disabled={busy} onPress={() => { setRegister(value => !value); setError(null); }}>{register ? 'Use an existing ticket account' : 'Create an online ticket account'}</Button>
+        <Button style={styles.secondary} variant="secondary" disabled={busy} onPress={() => { setRegister(value => !value); setError(null); }}>{register ? 'Use an existing ticket account' : 'Create a local ticket account'}</Button>
       </ScrollView>
     </KeyboardAvoidingView>
   </SafeAreaView>;

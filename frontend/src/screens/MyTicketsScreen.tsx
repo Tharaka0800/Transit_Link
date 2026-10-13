@@ -128,8 +128,8 @@ export default function MyTicketsScreen() {
             + New Ticket
           </Button>
         </View>
-        {!signedOut && <TouchableOpacity accessibilityRole="button" accessibilityLabel="Switch online ticket account" onPress={() => router.push('/ticketing/login')} style={{ padding: 12 }}>
-          <Text style={{ color: colors.brand }}>Switch online ticket account</Text>
+        {!signedOut && <TouchableOpacity accessibilityRole="button" accessibilityLabel="Switch local ticket account" onPress={() => router.push('/ticketing/login')} style={{ padding: 12 }}>
+          <Text style={{ color: colors.brand }}>Switch local ticket account</Text>
         </TouchableOpacity>}
         {signedOut ? (
           <View style={styles.empty}>

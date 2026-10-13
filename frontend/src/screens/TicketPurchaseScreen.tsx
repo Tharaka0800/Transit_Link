@@ -353,7 +353,7 @@ export default function TicketPurchaseScreen() {
               )}
               {purchaseUncertain.current && (
                 <Text style={styles.subtitle}>
-                  Your confirmation may have reached the server. Retry safely
+                  Your ticket may already have been saved. Retry safely
                   with the same quote, or check My Tickets before starting
                   another purchase.
                 </Text>

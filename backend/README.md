@@ -1,5 +1,7 @@
 # TransitLink Backend
 
+> Legacy backend: the current frontend uses AsyncStorage for tickets and other app data. Running this server is optional and does not synchronize the current app. Existing MongoDB records are preserved. See [current ticketing](../TICKETING.md).
+
 This Express server powers online ticket accounts, journey search, bus departures, seat holds, bookings, and QR verification using MongoDB and JWT authentication. The frontend uses local AsyncStorage for its offline profiles, notifications, saved routes, and Officer incidents. **The backend must run for online ticket features.**
 
 ## Setup

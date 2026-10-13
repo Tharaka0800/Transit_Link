@@ -13,12 +13,12 @@ let screen: ReactTestRenderer;
 const button = (label: string) => screen.root.findAllByType(TouchableOpacity).find(node => node.props.accessibilityLabel === label)!;
 beforeEach(() => { act(() => { screen = create(<TicketLoginScreen />); }); });
 afterEach(() => act(() => screen.unmount()));
-test('online sign-in requires credentials and returns verification users to the scanner', async () => {
+test('local ticket sign-in requires credentials and returns verification users to the scanner', async () => {
   await act(async () => button('Sign in to tickets').props.onPress());
   expect(loginTicketAccount).not.toHaveBeenCalled();
   act(() => {
-    screen.root.findAllByType(TextInput).find(node => node.props.accessibilityLabel === 'Online ticket email')!.props.onChangeText('admin@example.test');
-    screen.root.findAllByType(TextInput).find(node => node.props.accessibilityLabel === 'Online ticket password')!.props.onChangeText('password');
+    screen.root.findAllByType(TextInput).find(node => node.props.accessibilityLabel === 'Ticket email')!.props.onChangeText('admin@example.test');
+    screen.root.findAllByType(TextInput).find(node => node.props.accessibilityLabel === 'Ticket password')!.props.onChangeText('password');
   });
   jest.mocked(loginTicketAccount).mockResolvedValue({_id: 'admin', email: 'admin@example.test', fullName: 'Admin', role: 'admin', token: 'jwt'});
   await act(async () => button('Sign in to tickets').props.onPress());

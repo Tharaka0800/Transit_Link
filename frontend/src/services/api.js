@@ -23,8 +23,9 @@ export const toggleSavedRoute = async (id) => ({ data: await local.toggleSavedRo
 
 export const saveAuth = local.saveAuth;
 export const clearAuth = async () => {
-  await clearTicketAuth();
-  await local.clearAuth();
+  // Both calls invalidate pending work synchronously, before either storage
+  // operation is awaited. Ticket I/O must not delay the main session guard.
+  await Promise.all([local.clearAuth(), clearTicketAuth()]);
 };
 export const getStoredUser = local.getStoredUser;
 export const getToken = local.getToken;

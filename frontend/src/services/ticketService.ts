@@ -85,7 +85,7 @@ export function ticketError(error: unknown): string {
     return 'Your session has ended. Sign in again to continue.';
   return (
     failure.response?.data?.message ||
-    'We could not reach TransitLink. Check your connection and try again.'
+    'Could not access tickets on this device. Please try again.'
   );
 }
 export const isSessionError = (error: unknown) =>

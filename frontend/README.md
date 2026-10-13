@@ -1,6 +1,6 @@
 # TransitLink Frontend
 
-Expo SDK 51 / React Native app using Expo Router. It combines route and bus demonstrations, online tickets, local accounts, and Officer incident management. See the [project overview](../README.md) for full setup.
+Expo SDK 51 / React Native app using Expo Router. It combines route and bus demonstrations, local tickets, local accounts, and Officer incident management. See the [project overview](../README.md) for full setup.
 
 ## Setup
 
@@ -23,17 +23,11 @@ The entry point is `expo-router/entry`; pages live in `src/app`. Tabs are Home, 
 | Local login, profiles, notifications, saved routes, support, Officer alerts | Device storage; no backend |
 | Route search, bus list, status, ETA | Bundled demo data; no backend |
 | Bus map | Internet for Leaflet and OpenStreetMap |
-| Online accounts, tickets, seats, QR verification | Reachable backend and MongoDB |
+| Ticket accounts, tickets, seats, QR verification | Device storage; verification on the same installation |
 
-Online ticket accounts have a separate JWT session. Registering locally does not register an online account. Local logout clears both sessions. Local Officer roles do not authorize backend QR verification.
+Ticket accounts use a separate local session. Main app registration does not register a ticket account. Main app logout clears both sessions. Officer roles do not authorize ticket QR verification; use the ticket admin account `admin@transitlink.lk` / `admin123`.
 
-Follow [backend setup](../backend/README.md) for tickets. Set `EXPO_PUBLIC_API_URL` in `frontend/.env` to the backend origin without `/api`, then restart Expo:
-
-```dotenv
-EXPO_PUBLIC_API_URL=http://192.168.1.10:5000
-```
-
-Use your computer's LAN address for a phone. Defaults are `http://10.0.2.2:5000` on Android and `http://localhost:5000` on web/iOS simulator.
+No backend or API URL is required for the app. Ticket records and seats are local to each installation and never synchronize across devices. Existing MongoDB accounts/tickets are not automatically imported. The retained [legacy backend](../backend/README.md) remains available separately.
 
 ## Local demo login
 
@@ -59,20 +53,20 @@ The existing Favourite Routes list remains available. Choose **+ > Add Sample** 
 
 ## Digital tickets and payments
 
-1. Start the backend. Open **Tickets > Sign in** and register or use an online account.
+1. Open **Tickets > Sign in** and register or use a local passenger ticket account.
 2. Choose **New Ticket**, a bus/train journey, and ticket type.
 3. For buses, choose **Choose bus & seats**, a departure, and up to 10 seats. For trains, choose passenger count and travel time.
 4. Review the quote, select Transit Smart Balance, Card, or Mobile Wallet, and confirm the demo purchase.
 5. View each passenger's ticket, reference, seat when applicable, and QR in My Tickets. Used/expired tickets appear in History.
-6. Choose **Verify ticket QR** from Tickets and sign in online as admin. Scan on native or enter the complete manual token. Preview does not consume a ticket; explicitly validate to mark it used.
+6. Choose **Verify ticket QR** from Tickets and sign in as the local ticket admin on the same installation. Scan on native or enter the complete manual token. Preview does not consume a ticket; explicitly validate to mark it used.
 
 Seats use a 2+2 layout: white available, blue selected, grey occupied, green held by another booking. Availability refreshes every 15 seconds while the picker is open. Reviewing holds seats for up to five minutes; editing releases the hold. Each passenger receives an independent ticket and QR. Confirmation retries reuse the quote to avoid duplicate issuance.
 
-Payments collect no credentials or funds. Fares, schedules, and vehicles are demo data. Tickets require a live backend; offline ticket caching is not implemented. See [ticketing details](../TICKETING.md).
+Payments collect no credentials or funds. Fares, schedules, and vehicles are demo data. Tickets work offline. Verification only recognizes tickets created on this installation; no bookings are shared between devices. See [ticketing details](../TICKETING.md).
 
 ## Local persistence
 
-Profiles, notifications, saved routes, and support reports persist on the device. Notifications and saved routes belong to the signed-in account. `src/services/LocalAppStorage.ts` uses `@transitlink_app_v1`; online sessions use `@transitlink_online_ticket_session`. Passwords use salted bcrypt hashes and secure randomness from `expo-crypto`.
+Profiles, notifications, saved routes, and support reports persist on the device. Notifications and saved routes belong to the signed-in account. `src/services/LocalAppStorage.ts` uses `@transitlink_app_v1`; ticket accounts, session, quotes, seat bookings, and history use `@transitlink_tickets_v1`. Obsolete online credentials are never accepted as local ticket sessions. Passwords use salted bcrypt hashes and secure randomness from `expo-crypto`.
 
 Account deletion removes related local records and session while preserving Officer incidents. Storage operations are serialized; malformed data and storage errors do not overwrite existing records. Empty collections remain empty. Obsolete backend sessions are discarded; older backend users must register locally for local features.
 
@@ -100,7 +94,7 @@ npx expo install --check
 npx expo export --platform all --output-dir dist
 ```
 
-On October 9, 2026, TypeScript and all 183 tests across 16 suites passed. Web, Android, and iOS exports passed for the bus integration. Tests cover local accounts/storage, Officer CRUD/access, ticket flows/seats, route search, selected-bus navigation, and invalid bus IDs.
+On October 13, 2026, TypeScript, all 196 tests across 16 suites, and Android JavaScript export passed for local ticket storage. Tests cover local accounts/storage, Officer CRUD/access, ticket flows/seats/QR, storage failures, route search, selected-bus navigation, and invalid bus IDs.
 
 Exports validate bundling, not device behavior. The restored map still needs manual browser/device checks for external loading. Check camera permissions on target devices.
 
@@ -109,7 +103,7 @@ Manual checks:
 1. Search routes, try empty results, load the map, and navigate from bus status to ETA.
 2. Sign in locally and verify profile, notification, and saved-route persistence after restart.
 3. Create/edit/resolve an Officer alert and verify persistence. Other roles should have no Officer tab.
-4. Run the backend, book seats, open a QR, and verify it with an online admin account.
+4. Book seats offline, restart and check tickets persist, then verify the manual QR token with the local ticket admin on the same installation.
 5. Check narrow screens, keyboard behavior, and Back navigation on target devices.
 
 ## Screen files
@@ -124,5 +118,5 @@ Manual checks:
 | Notifications / Support | `src/screens/Notifications.js`, `src/screens/HelpSupport.js` |
 | Fare calculator | `src/screens/FareInformation.js` |
 | Ticket list / Purchase / Details | `src/screens/MyTicketsScreen.tsx`, `src/screens/TicketPurchaseScreen.tsx`, `src/screens/TicketDetailsScreen.tsx` |
-| Online login / QR verification | `src/screens/TicketLoginScreen.tsx`, `src/screens/TicketVerificationScreen.tsx` |
+| Local ticket login / QR verification | `src/screens/TicketLoginScreen.tsx`, `src/screens/TicketVerificationScreen.tsx` |
 | Officer / Alert form | `src/app/(tabs)/officer-dashboard/index.tsx`, `src/app/officer-dashboard/add-alert.tsx` |

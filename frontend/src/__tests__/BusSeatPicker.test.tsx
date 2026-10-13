@@ -60,7 +60,7 @@ test('changing bus departure clears seats and refresh removes newly unavailable 
 test('network failures show a retry and block submission until availability is restored', async () => {
   jest.mocked(loadBusTrips).mockRejectedValueOnce(new Error('offline'));
   await render();
-  expect(content()).toContain('We could not reach TransitLink');
+  expect(content()).toContain('Could not access tickets on this device');
   await press('Refresh availability');
   expect(content()).toContain('18 of 20 seats available');
   await press('Close seat selection');
