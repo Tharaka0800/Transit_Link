@@ -14,7 +14,7 @@ npx expo start
 
 Press `w` for web or `a` for an Android emulator. Use an SDK 51-compatible Expo Go client or development build. Rebuild custom native clients when adding native dependencies such as WebView or camera. Metro must be reachable to load the development bundle.
 
-The entry point is `expo-router/entry`; pages live in `src/app`. Tabs are Home, Routes, Tickets, Profile, and Officer for local officers only. Bus details, arrival times, ticket screens, and alert forms open above the tabs.
+The entry point is `expo-router/entry`; pages live in `src/app`. Tabs are Home, Routes, Tickets, Profile, plus Admin for admins and Officer for officers. Admin login opens the Admin workspace. Bus details, arrival times, ticket screens, and alert forms open above the tabs.
 
 ## Connectivity and accounts
 
@@ -38,7 +38,7 @@ No backend or API URL is required for the app. Ticket records and seats are loca
 | Admin | `admin@transitlink.lk` | `admin123` |
 | Transport officer | `officer@transitlink.lk` | `OfficerDemo@2026` |
 
-Accounts initialize only when the local database is missing. Registration creates passengers; login accepts email or phone. Sessions persist until logout or account deletion. Officers open SmartBus Dashboard directly; other roles open Home. The Officer tab and alert form reject other roles. Built-in Officer credentials, role, and deletion are protected.
+Accounts initialize only when the local database is missing. Registration creates passengers; login accepts email or phone. Sessions persist until logout or account deletion. Officers open SmartBus Dashboard directly; admins open the Admin workspace; passengers open Home. The Officer tab and alert form reject other roles. Built-in Officer credentials, role, and deletion are protected.
 
 ## Routes, map, bus status, and ETA
 
@@ -49,7 +49,7 @@ Accounts initialize only when the local database is missing. Registration create
 
 Coordinates, speeds, seat labels, and ETAs are fixed values in `src/data/buses.js`, without GPS updates. Maps use an iframe on web and WebView on native. Bus details remain available if external map resources fail. Results without corresponding bus data show that status is unavailable.
 
-The existing Favourite Routes list remains available. Choose **+ > Add Sample** to save a sample route, tap it for details, or toggle its favourite status. Fare Information opens the separate demo calculator.
+Route Search, the fare calculator, and ticket quotes read the same local managed catalogue. Admins can edit fares and disable journeys. Custom journeys without a matching bundled bus show status as unavailable. The existing Favourite Routes list remains available. Choose **+ > Add Sample** to save a sample route, tap it for details, or toggle its favourite status. Fare Information opens the separate demo calculator.
 
 ## Digital tickets and payments
 
@@ -70,7 +70,7 @@ Profiles, notifications, saved routes, and support reports persist on the device
 
 Account deletion removes related local records and session while preserving Officer incidents. Storage operations are serialized; malformed data and storage errors do not overwrite existing records. Empty collections remain empty. Obsolete backend sessions are discarded; older backend users must register locally for local features.
 
-Data does not synchronize across installations. Clearing storage removes it. Role checks protect normal navigation rather than device-storage tampering. Password recovery sends no email; support reports stay local.
+Data does not synchronize across installations. Clearing storage removes it. Role checks protect normal navigation rather than device-storage tampering. Password recovery sends no email; support reports stay local and appear in the Admin support inbox. Admin replies appear in the passenger's notifications and Help > Report an Issue history.
 
 ## Officer incidents
 
@@ -122,3 +122,9 @@ Manual checks:
 | Officer / Alert form | `src/app/(tabs)/officer-dashboard/index.tsx`, `src/app/officer-dashboard/add-alert.tsx` |
 
 Shared-account and Officer-metric changes on October 14, 2026 passed TypeScript, all 204 tests across 16 suites, and Android JavaScript export. Device/APK testing remains required.
+
+## Admin workspace
+
+Sign in as `admin@transitlink.lk` / `admin123`. The Admin tab contains Overview, Tickets, Users, Support, Routes & fares, Activity, and Backup. Its service methods enforce admin access as well as the screen guard. Disabled accounts cannot log in; the last active admin and the built-in Officer are protected. Backups exclude active login sessions and include private account/ticket records; validated restore requires confirmation and signs users out.
+
+See the [Admin guide](../ADMIN.md) for workflows, limitations, and verification.

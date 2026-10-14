@@ -13,7 +13,9 @@ import { router } from 'expo-router';
 import Navbar from '../components/Navbar';
 import FormInput from '../components/FormInput';
 import Button from '../components/Button';
-import { createNotification } from '../services/api';
+import { createSupportReport, getMySupportReports } from '../services/LocalAppStorage';
+import { useFocusEffect } from 'expo-router';
+import { useCallback } from 'react';
 import { useAuth } from '../auth/AuthProvider';
 import { showAlert } from '../components/AppAlert';
 import { colors } from '../theme';
@@ -58,7 +60,7 @@ const faqContent = [
   },
   {
     q: 'Can I track buses in real time?',
-    a: 'Yes. Open Routes, pick a line, and view live vehicle positions on the map.',
+    a: 'Open Routes to view demonstration bus positions and arrival estimates. This prototype does not provide live GPS tracking.',
   },
   {
     q: 'How do I reset my password?',
@@ -80,6 +82,13 @@ const HelpSupport = () => {
   const [activePanel, setActivePanel] = useState(null);
   const [issueForm, setIssueForm] = useState({ title: '', message: '' });
   const [loading, setLoading] = useState(false);
+  const [reports, setReports] = useState([]);
+  const [reportError, setReportError] = useState(null);
+  useFocusEffect(useCallback(() => {
+    let active = true; setReports([]); setReportError(null);
+    if (session) getMySupportReports().then(items => { if (active) setReports(items); }).catch(e => { if (active) setReportError(e.message); });
+    return () => { active = false; };
+  }, [session?.token]));
 
   useEffect(() => {
     setIssueForm({ title: '', message: '' });
@@ -111,13 +120,10 @@ const HelpSupport = () => {
     reportPending.current = true;
     setLoading(true);
     try {
-      await createNotification({
-        title: issueForm.title,
-        message: issueForm.message,
-        type: 'info',
-      });
+      const report = await createSupportReport(issueForm.title, issueForm.message);
       if (!isActive()) return;
-      showAlert('Saved', 'Your issue has been saved on this device.');
+      setReports(items => [...items, report]);
+      showAlert('Saved', 'Your issue is available to the admin on this device.');
       setIssueForm({ title: '', message: '' });
       setActivePanel(null);
     } catch (err) {
@@ -153,6 +159,12 @@ const HelpSupport = () => {
         return (
           <View style={styles.panelCard}>
             <Text style={styles.panelHeading}>Report an Issue</Text>
+            {reportError && <Text accessibilityRole="alert">{reportError}</Text>}
+            {reports.slice().reverse().map(report => <View key={report.id} style={styles.panelCard}>
+              <Text style={styles.panelTitle}>{report.title} ? {report.status}</Text>
+              <Text style={styles.panelBody}>{report.message}</Text>
+              {report.response ? <Text style={styles.panelBody}>Admin response: {report.response}</Text> : null}
+            </View>)}
             <FormInput
               label="Subject"
               value={issueForm.title}

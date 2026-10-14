@@ -12,6 +12,7 @@ const tabIcons: Record<string, { active: IconName; inactive: IconName }> = {
   routes: { active: 'location', inactive: 'location-outline' },
   tickets: { active: 'ticket', inactive: 'ticket-outline' },
   profile: { active: 'person', inactive: 'person-outline' },
+  admin: { active: 'shield', inactive: 'shield-outline' },
   'officer-dashboard/index': {
     active: 'speedometer',
     inactive: 'speedometer-outline',
@@ -21,6 +22,7 @@ const tabIcons: Record<string, { active: IconName; inactive: IconName }> = {
 export default function TabLayout() {
   const { session, loading, error, retry } = useAuth();
   if (loading || error) return <AuthLoading error={error} onRetry={retry} />;
+  const isAdmin = session?.user.role === 'admin';
   const isOfficer = session?.user.role === 'officer';
   return (
     <Tabs
@@ -52,6 +54,7 @@ export default function TabLayout() {
       <Tabs.Screen name="routes" options={{ title: 'Routes' }} />
       <Tabs.Screen name="tickets" options={{ title: 'Tickets' }} />
       <Tabs.Screen name="profile" options={{ title: 'Profile' }} />
+      <Tabs.Screen name="admin" options={{ title: 'Admin', href: isAdmin ? '/(tabs)/admin' : null }} />
       <Tabs.Screen name="officer-dashboard/index" options={{ title: 'Officer', href: isOfficer ? '/(tabs)/officer-dashboard' : null }} />
     </Tabs>
   );

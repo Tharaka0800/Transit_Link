@@ -64,7 +64,7 @@ test('removes the unauthenticated Officer shortcut from login and registration',
 test.each([
   ['officer', '/(tabs)/officer-dashboard'],
   ['passenger', '/(tabs)/home'],
-  ['admin', '/(tabs)/home'],
+  ['admin', '/(tabs)/admin'],
 ])('routes authenticated %s accounts to their own landing screen', async (role, destination) => {
   const account = { _id: role, role, email: `${role}@transitlink.lk`, token: 'opaque-local-session' };
   mockLogin.mockResolvedValueOnce({ data: account } as any);

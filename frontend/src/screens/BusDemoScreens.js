@@ -1,12 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { ScrollView, View, Text, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import Navbar from '../components/Navbar';
 import Button from '../components/Button';
 import FormInput from '../components/FormInput';
 import BusMap from '../components/BusMap';
 import { buses, routes } from '../data/buses';
+import { loadCatalogue } from '../services/LocalAppStorage';
 import { colors } from '../theme';
 const back = () => router.canGoBack() ? router.back() : router.replace('/(tabs)/routes');
 const openBus = bus => router.push({
@@ -16,6 +17,7 @@ const openBus = bus => router.push({
   }
 });
 const normalized = value => value.trim().toLowerCase().replace(/^colombo fort$/, 'colombo');
+const busForRoute = route => buses.find(bus => bus.routeNumber === route.routeNumber && normalized(bus.from) === normalized(route.from) && normalized(bus.to) === normalized(route.to));
 export function matchingRoutes(from, to, type = 'All') {
   return routes.filter(route => normalized(route.from).includes(normalized(from)) && normalized(route.to).includes(normalized(to)) && (type === 'All' || route.type === type));
 }
@@ -26,16 +28,25 @@ function Page({
   return <SafeAreaView style={styles.safe} edges={['top']}><Navbar title={title} onBack={back} /><ScrollView contentContainerStyle={styles.content}><Text style={styles.note}>Demo data · Positions and arrival times are illustrative.</Text>{children}</ScrollView></SafeAreaView>;
 }
 export function RouteSearchScreen() {
+  const [catalogue, setCatalogue] = useState([]);
+  const [catalogueError, setCatalogueError] = useState('');
+  const [catalogueLoading, setCatalogueLoading] = useState(true);
+  const [reload, setReload] = useState(0);
+  useFocusEffect(useCallback(() => { let active = true; setCatalogueLoading(true); setCatalogueError('');
+    loadCatalogue().then(items => { if (active) setCatalogue(items.filter(j => j.active).map(j => ({ ...j, routeNumber: j.routeNumber, type: j.serviceType, departure: j.departureLabel, arrival: j.arrivalLabel, fare: j.ticketTypes[0].fareMinor / 100 }))); })
+      .catch(e => { if (active) setCatalogueError(e.message); }).finally(() => { if (active) setCatalogueLoading(false); });
+    return () => { active = false; };
+  }, [reload]));
   const [from, setFrom] = useState('Colombo Fort');
   const [to, setTo] = useState('Kandy');
   const [query, setQuery] = useState(null);
   const [type, setType] = useState('All');
   const [error, setError] = useState('');
-  const results = query ? matchingRoutes(query.from, query.to, type) : [];
+  const results = query ? catalogue.filter(route => normalized(route.from).includes(normalized(query.from)) && normalized(route.to).includes(normalized(query.to)) && (type === 'All' || route.type === type)) : [];
   return <Page title="Search Routes"><FormInput label="From" value={from} onChangeText={setFrom} /><FormInput label="To" value={to} onChangeText={setTo} /><Button variant="secondary" onPress={() => {
       setFrom(to);
       setTo(from);
-    }}>Swap locations</Button><Button onPress={() => {
+    }}>Swap locations</Button><Button disabled={catalogueLoading} onPress={() => {
       if (!from.trim() || !to.trim()) {
         setError('Enter both locations.');
         return;
@@ -46,7 +57,7 @@ export function RouteSearchScreen() {
         from,
         to
       });
-    }}>Search Routes</Button>{error ? <Text accessibilityRole="alert">{error}</Text> : null}{query && <><Text style={styles.heading}>{query.from} → {query.to}</Text><View style={styles.filters}>{['All', 'Express', 'Normal'].map(value => <Button key={value} variant={type === value ? 'primary' : 'secondary'} onPress={() => setType(value)}>{value}</Button>)}</View>{!results.length && <Text>No demo routes match these locations. Try Colombo Fort → Kandy.</Text>}{results.map(route => <View style={styles.card} key={route.id}><Text style={styles.heading}>Bus {route.routeNumber} · {route.type}</Text><Text>{route.from} → {route.to}</Text><Text>Departs {route.departure} · Arrives {route.arrival}</Text><Text>Demo fare: LKR {route.fare}</Text>{buses.find(bus => bus.routeNumber === route.routeNumber) ? <Button onPress={() => openBus(buses.find(bus => bus.routeNumber === route.routeNumber))}>View bus status</Button> : <Text style={styles.note}>Bus status unavailable for this demo route.</Text>}</View>)}</>}<Button variant="secondary" onPress={() => router.push('/bus-map')}>Open bus map</Button></Page>;
+    }}>Search Routes</Button>{catalogueLoading && <Text>Loading routes...</Text>}{catalogueError && <><Text accessibilityRole="alert">{catalogueError}</Text><Button onPress={() => setReload(n => n + 1)}>Retry route loading</Button></>}{error ? <Text accessibilityRole="alert">{error}</Text> : null}{query && !catalogueLoading && !catalogueError && <><Text style={styles.heading}>{query.from} → {query.to}</Text><View style={styles.filters}>{['All', 'Express', 'Normal'].map(value => <Button key={value} variant={type === value ? 'primary' : 'secondary'} onPress={() => setType(value)}>{value}</Button>)}</View>{!results.length && <Text>No demo routes match these locations. Try Colombo Fort → Kandy.</Text>}{results.map(route => <View style={styles.card} key={route.id}><Text style={styles.heading}>{route.mode || 'Bus'} {route.routeNumber} · {route.type}</Text><Text>{route.from} → {route.to}</Text><Text>Departs {route.departure} · Arrives {route.arrival}</Text><Text>Demo fare: LKR {route.fare}</Text>{route.mode === 'Bus' && busForRoute(route) ? <Button onPress={() => openBus(busForRoute(route))}>View bus status</Button> : <Text style={styles.note}>{route.mode === 'Train' ? 'Train status unavailable for this demo route.' : 'Bus status unavailable for this demo route.'}</Text>}</View>)}</>}<Button variant="secondary" onPress={() => router.push('/bus-map')}>Open bus map</Button></Page>;
 }
 export function BusMapScreen() {
   return <Page title="Bus Map"><BusMap buses={buses} />{buses.map(bus => <View key={bus.id} style={styles.card}><Text style={styles.heading}>Bus {bus.routeNumber}</Text><Text>{bus.from} → {bus.to} · Demo ETA {bus.eta} min</Text><Button onPress={() => openBus(bus)}>View bus status</Button></View>)}</Page>;

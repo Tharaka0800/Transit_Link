@@ -14,7 +14,7 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export function getLandingRoute(user: { role?: string } | null | undefined) {
-  return user?.role === 'officer' ? '/(tabs)/officer-dashboard' : '/(tabs)/home';
+  return user?.role === 'officer' ? '/(tabs)/officer-dashboard' : user?.role === 'admin' ? '/(tabs)/admin' : '/(tabs)/home';
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {

@@ -13,15 +13,9 @@ import Navbar from '../components/Navbar';
 import FormInput from '../components/FormInput';
 import Button from '../components/Button';
 import { generalFares } from '../data/mockData';
+import { loadCatalogue } from '../services/LocalAppStorage';
 import { showAlert } from '../components/AppAlert';
 import { colors } from '../theme';
-
-const fareTable = {
-  'colombo fort|kandy': { Bus: 320, Train: 450 },
-  'colombo fort|galle': { Bus: 280, Train: 400 },
-  'maharagama|pettah': { Bus: 60, Train: null },
-  'negombo|colombo fort': { Bus: 150, Train: 220 },
-};
 
 const normalize = (value) => value.trim().toLowerCase();
 
@@ -32,34 +26,19 @@ const FareInformation = () => {
   const [transport, setTransport] = useState('Bus');
   const [result, setResult] = useState(null);
 
-  const calculateFare = () => {
+  const calculateFare = async () => {
     if (!from.trim() || !to.trim()) {
       showAlert('Missing fields', 'Please enter both From and To locations.');
       return;
     }
 
-    const key = `${normalize(from)}|${normalize(to)}`;
-    const reverseKey = `${normalize(to)}|${normalize(from)}`;
-    const entry = fareTable[key] || fareTable[reverseKey];
+    try {
+      const journeys = (await loadCatalogue()).filter(j => j.active && j.mode === transport);
+      const journey = journeys.find(j => normalize(j.from) === normalize(from) && normalize(j.to) === normalize(to));
+      if (!journey) { setResult(null); showAlert('Unavailable journey', 'No configured fare matches this journey. Check Route Search for available services.'); return; }
+      setResult({ amount: journey.ticketTypes[0].fareMinor / 100, transport, classType: journey.ticketTypes[0].label, estimated: false });
+    } catch (e) { showAlert('Could not load fares', e.message); }
 
-    if (!entry || entry[transport] == null) {
-      // Fallback estimate for unknown routes
-      const estimate = transport === 'Bus' ? 180 : 260;
-      setResult({
-        amount: estimate,
-        transport,
-        classType: 'Standard',
-        estimated: true,
-      });
-      return;
-    }
-
-    setResult({
-      amount: entry[transport],
-      transport,
-      classType: 'Standard',
-      estimated: false,
-    });
   };
 
   return (
@@ -148,7 +127,7 @@ const FareInformation = () => {
 
             {result ? (
               <View style={styles.resultCard}>
-                <Text style={styles.resultLabel}>Estimated Fare</Text>
+                <Text style={styles.resultLabel}>Configured Fare</Text>
                 <View style={styles.resultRow}>
                   <Ionicons
                     name="card-outline"

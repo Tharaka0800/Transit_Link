@@ -2,7 +2,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Crypto from 'expo-crypto';
 import bcrypt from 'bcryptjs/index.js';
 import * as mainAccount from './LocalAppStorage';
-import catalogue from '../data/ticketJourneys.json';
+import { storageIsBusy, recoverStorage, registerStorageQueue } from './StorageMaintenance';
+import { validActivities, Activity } from './adminTypes';
 import type { TicketAccount } from './ticketApi';
 import type { Journey, Quote, Ticket, BusTrip } from './ticketService';
 
@@ -13,15 +14,15 @@ type StoredTicket = Ticket & { userId: string };
 type Trip = { id: string; journeyId: string; busName: string; departureAt: string };
 interface Database {
   version: 1; accounts: Account[]; session: { userId: string; token: string } | null;
-  quotes: StoredQuote[]; tickets: StoredTicket[]; trips: Trip[];
+  quotes: StoredQuote[]; tickets: StoredTicket[]; trips: Trip[]; activities?: Activity[];
 }
-const journeys: Journey[] = catalogue.map(j => ({ ...j, id: j.code, mode: j.mode as Journey['mode'],
-  ticketTypes: j.ticketTypes.map(t => ({ ...t, label: 'Standard - Single journey' })) }));
 const labels = Array.from({ length: 5 }, (_, r) => ['A', 'B', 'C', 'D'].map(c => `${String(r + 1).padStart(2, '0')}${c}`)).flat();
 let pending: Promise<unknown> = Promise.resolve();
 let authGeneration = 0;
+registerStorageQueue(() => pending);
 function serial<T>(operation: () => Promise<T>): Promise<T> {
-  const result = pending.then(operation);
+  if (storageIsBusy()) return Promise.reject(new TicketStorageError('Backup or restore is running. Please try again shortly.', 503));
+  const result = pending.then(async () => { await recoverStorage(); return operation(); });
   pending = result.catch(() => undefined);
   return result;
 }
@@ -36,20 +37,32 @@ mainAccount.subscribeAuth(() => { authGeneration += 1; });
 const date = (value: unknown) => typeof value === 'string' && Number.isFinite(Date.parse(value));
 const object = (value: any) => value && typeof value === 'object' && !Array.isArray(value);
 const string = (value: unknown) => typeof value === 'string' && value.length > 0;
-function valid(db: any): db is Database {
-  return object(db) && db.version === 1 && Array.isArray(db.accounts) && Array.isArray(db.quotes)
+function validJourneySnapshot(j: any) {
+  return object(j) && string(j.code) && ['Bus', 'Train'].includes(j.mode) && string(j.from) && string(j.to) && Number.isInteger(j.durationMinutes) && j.durationMinutes > 0;
+}
+export function validTicketDatabase(db: any): db is Database {
+  return object(db) && (db.activities === undefined || validActivities(db.activities)) && db.version === 1 && Array.isArray(db.accounts) && Array.isArray(db.quotes)
     && Array.isArray(db.tickets) && Array.isArray(db.trips)
     && db.accounts.every((a: any) => object(a) && string(a._id) && string(a.fullName) && string(a.email)
       && ['passenger', 'admin'].includes(a.role) && /^\$2[aby]\$\d{2}\$[./A-Za-z0-9]{53}$/.test(a.passwordHash))
     && (db.session === null || (object(db.session) && string(db.session.token) && db.session.token.startsWith('local-ticket:')
       && db.accounts.some((a: Account) => a._id === db.session.userId)))
     && db.trips.every((t: any) => object(t) && string(t.id) && string(t.journeyId) && string(t.busName) && date(t.departureAt))
-    && db.quotes.every((q: any) => object(q) && string(q.id) && string(q.userId) && object(q.journey)
+    && db.quotes.every((q: any) => object(q) && string(q.id) && string(q.userId) && validJourneySnapshot(q.journey)
+      && string(q.ticketType) && string(q.ticketTypeLabel) && q.currency === 'LKR' && q.fareMinor > 0
       && date(q.validFrom) && date(q.validUntil) && date(q.expiresAt) && Number.isSafeInteger(q.fareMinor)
+      && Date.parse(q.validUntil) > Date.parse(q.validFrom)
+      && (q.released === undefined || typeof q.released === 'boolean')
       && Number.isInteger(q.passengerCount) && q.passengerCount >= 1 && q.passengerCount <= 10
       && (!q.tripId || (Array.isArray(q.seats) && q.seats.length === q.passengerCount && q.seats.every((s: string) => labels.includes(s)))))
     && db.tickets.every((t: any) => object(t) && string(t.id) && string(t.userId) && string(t.reference)
-      && object(t.journey) && date(t.validFrom) && date(t.validUntil) && date(t.purchasedAt)
+      && string(t.passengerName) && string(t.bookingId) && string(t.ticketType) && string(t.ticketTypeLabel)
+      && t.currency === 'LKR' && Number.isSafeInteger(t.fareMinor) && t.fareMinor > 0
+      && Number.isInteger(t.passengerCount) && t.passengerCount > 0 && t.passengerCount <= 10
+      && Number.isInteger(t.passengerNumber) && t.passengerNumber > 0 && t.passengerNumber <= t.passengerCount
+      && (t.usedAt === null || date(t.usedAt)) && (t.status !== 'Used' || date(t.usedAt))
+      && validJourneySnapshot(t.journey) && date(t.validFrom) && date(t.validUntil) && date(t.purchasedAt)
+      && Date.parse(t.validUntil) > Date.parse(t.validFrom)
       && ['Active', 'Upcoming', 'Expired', 'Used'].includes(t.status) && /^TL1:[a-f0-9]{64}$/.test(t.qrPayload));
 }
 async function read(): Promise<Database> {
@@ -59,7 +72,7 @@ async function read(): Promise<Database> {
   if (raw !== null) {
     let db;
     try { db = JSON.parse(raw); } catch { return fail('Saved ticket data is invalid and has been preserved.', 500); }
-    if (!valid(db)) return fail('Saved ticket data is invalid and has been preserved.', 500);
+    if (!validTicketDatabase(db)) return fail('Saved ticket data is invalid and has been preserved.', 500);
     return db;
   }
   const db: Database = { version: 1, accounts: [], session: null, quotes: [], tickets: [], trips: [] };
@@ -181,6 +194,7 @@ export function localTicketRequest(method: string, path: string, input: unknown 
         fail('Your session changed. Please sign in again.', 401);
     };
     await assertSession();
+    const journeys = (await mainAccount.loadCatalogue()).filter(j => j.active);
     const db = await read();
     await assertSession();
     const body: any = object(input) ? input : {};
@@ -247,6 +261,7 @@ export function localTicketRequest(method: string, path: string, input: unknown 
       if (!quote) fail('Fare quote not found. Review your journey again.', 404);
       let tickets = db.tickets.filter(t => t.bookingId === quote.id);
       if (!tickets.length) {
+        if (!journeys.some(j => j.code === quote.journey.code)) fail('This journey is no longer available. Review another journey.', 409);
         if (quote.released || Date.parse(quote.expiresAt) <= Date.now()) fail('Your fare quote expired. Review your journey again.', 409);
         if (quote.tripId && db.tickets.some(t => t.tripId === quote.tripId && quote.seats?.includes(t.seatLabel!))) fail('Your seats are no longer available.', 409);
         const { userId, expiresAt, released, seats, ...details } = quote;
@@ -269,7 +284,11 @@ export function localTicketRequest(method: string, path: string, input: unknown 
       if (!ticket) fail('Ticket not found on this device. Only tickets created on this installation can be verified.', 404);
       if (path === '/tickets/verify') return { ticket: view(ticket), eligible: status(ticket) === 'Active' };
       if (status(ticket) !== 'Active') fail(`Ticket is ${status(ticket).toLowerCase()} and cannot be used.`, 409);
-      ticket.status = 'Used'; ticket.usedAt = new Date().toISOString(); await commit();
+      ticket.status = 'Used'; ticket.usedAt = new Date().toISOString();
+      (ticket as StoredTicket & { verifiedBy?: string; verifierName?: string }).verifiedBy = user._id;
+      (ticket as StoredTicket & { verifierName?: string }).verifierName = user.fullName;
+      (db.activities ??= []).push({ id: id(), actorId: user._id, actorName: user.fullName, action: 'Ticket validated', target: ticket.reference, at: ticket.usedAt! });
+      await commit();
       return { ticket: view(ticket), message: 'Ticket validated and marked used.' };
     }
     const detail = path.match(/^\/tickets\/([^/]+)$/);
@@ -279,5 +298,30 @@ export function localTicketRequest(method: string, path: string, input: unknown 
       return { ticket: view(ticket, true) };
     }
     return fail('Unsupported local ticket operation.', 404);
+  });
+}
+
+
+export function loadAdminTickets(): Promise<Array<Ticket & { ownerId: string; verifiedBy?: string; verifierName?: string }>> {
+  const identity = mainAccount.getAuthSession();
+  return serial(async () => {
+    const session = await identity;
+    if (!session || session.user.role !== 'admin') fail('Admin access is required.', 403);
+    const db = await read();
+    if ((await mainAccount.getAuthSession())?.token !== session.token) fail('Your session changed. Please try again.', 401);
+    return db.tickets.map(t => ({ ...view(t), ownerId: t.userId }));
+  });
+}
+
+export function loadAdminTicketActivities(): Promise<Activity[]> {
+  const identity = mainAccount.getAuthSession();
+  return serial(async () => {
+    const session = await identity;
+    if (!session || session.user.role !== 'admin') fail('Admin access is required.', 403);
+    const db = await read();
+    if ((await mainAccount.getAuthSession())?.token !== session.token) fail('Your session changed. Please try again.', 401);
+    const events = db.activities ?? [];
+    const historical = db.tickets.filter(t => t.usedAt && (t as any).verifiedBy && !events.some(a => a.target === t.reference)).map(t => ({ id: `verify:${t.id}`, actorId: (t as any).verifiedBy, actorName: (t as any).verifierName || (t as any).verifiedBy, action: 'Ticket validated', target: t.reference, at: t.usedAt! }));
+    return [...events, ...historical];
   });
 }

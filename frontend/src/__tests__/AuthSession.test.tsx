@@ -66,7 +66,7 @@ test('restores a persisted Officer session without an online verification step',
 test.each([
   ['officer', '/(tabs)/officer-dashboard'],
   ['passenger', '/(tabs)/home'],
-  ['admin', '/(tabs)/home'],
+  ['admin', '/(tabs)/admin'],
   [null, '/login'],
 ])('cold launch routes %s sessions to the correct destination', async (role, destination) => {
   jest.mocked(getAuthSession).mockResolvedValueOnce(role ? session(role) as any : null);

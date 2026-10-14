@@ -9,6 +9,7 @@ TransitLink is a university transit prototype built with Expo SDK 51, React Nati
 | Routes and buses | Route search and filters, bus map, status, ETA, saved routes, fare calculator | Bundled demo data; internet for map tiles |
 | Digital tickets | Bus seats, train/group booking, scheduling, history, QR display and verification | Local ticket storage; verification on the same installation |
 | Passenger accounts | Registration, login, profiles, notifications, settings, support reports | Local device storage |
+| Admin workspace | Dashboard, ticket search, users, support, routes/fares, activity, backup/restore | Local Admin account |
 | Officer dashboard | Create, read, edit, and resolve incidents | Local Officer account |
 
 Bus positions, ETAs, fares, and schedules are illustrative. Payments are simulated and collect no funds. Profiles and tickets use the same main app account.
@@ -42,7 +43,7 @@ Tickets and seat availability are scoped to one installation. Only tickets creat
 | Admin | `admin@transitlink.lk` | `admin123` |
 | Transport officer | `officer@transitlink.lk` | `OfficerDemo@2026` |
 
-Accounts initialize when local storage is first created. Officer login opens SmartBus Dashboard; other roles open Home. The same passenger and admin accounts are used for tickets. Legacy local ticket-only passengers can sign in with their old credentials to upgrade and link their ticket history. Matching email addresses alone do not transfer ticket ownership.
+Accounts initialize when local storage is first created. Officer login opens SmartBus Dashboard; Admin login opens the Admin workspace; passengers open Home. The same passenger and admin accounts are used for tickets. Legacy local ticket-only passengers can sign in with their old credentials to upgrade and link their ticket history. Matching email addresses alone do not transfer ticket ownership.
 
 ## Demonstration
 
@@ -73,17 +74,20 @@ On October 13, 2026, the AsyncStorage ticket migration passed TypeScript, all 19
 | `frontend/src/app` | Expo Router pages and navigation |
 | `frontend/src/screens` | Passenger, bus, ticket, and Officer screens |
 | `frontend/src/components` | Shared controls, map, and ticket components |
-| `frontend/src/data` | Bus and fare demo data |
+| `frontend/src/data` | Initial bus/journey demo data; Admin edits persist locally |
 | `frontend/src/services` | Local account and ticket storage |
 | `frontend/src/utils` | Officer storage and ticket helpers |
 | `backend` | Retained legacy Express/MongoDB API and tests |
 
 ## Documentation and limitations
 
+- [Admin workspace and backup guide](ADMIN.md)
 - [Frontend setup and demonstration guide](frontend/README.md)
 - [Legacy backend setup and booking API](backend/README.md)
 - [Ticketing design, verification, and limitations](TICKETING.md)
 
-Local records do not synchronize across installations. Clearing app storage removes them. Bus locations and ETAs are fixed demo values. Password recovery, live GPS tracking, real payments, and production role provisioning are outside the implemented scope. Officer bus/route counts use the demo catalogue; urgent-alert and affected-route counts use saved incidents. On-time and rerouting data are unavailable; support reports are saved locally.
+Local records do not synchronize across installations. Clearing app storage removes them. Bus locations and ETAs are fixed demo values. Password recovery, live GPS tracking, real payments, and production role provisioning are outside the implemented scope. Officer bus/route counts use the demo catalogue; urgent-alert and affected-route counts use saved incidents. On-time and rerouting data are unavailable; support reports and Admin replies are saved locally. See [Admin guide](ADMIN.md) for account management, the shared journey catalogue, audit history, and backup/restore.
 
 Shared-account and Officer-metric changes on October 14, 2026 passed TypeScript, all 204 tests across 16 suites, and Android JavaScript export. Device/APK testing remains required.
+
+Admin implementation checks on October 14, 2026 passed TypeScript, 229 tests across 18 suites, and Android/iOS/web JavaScript exports. Native sharing, camera, and storage still require a rebuilt APK/device smoke test.

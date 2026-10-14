@@ -16,7 +16,7 @@ The main app provides these shared demo accounts:
 
 Registration always creates passengers. Passwords are stored as salted bcrypt hashes using Expo Crypto randomness. Session/profile responses contain no password hashes. Server JWTs do not grant local access. Previously registered MongoDB accounts and tickets remain on the server and are not automatically copied into AsyncStorage; register a main app account as needed.
 
-The bundled catalogue is `frontend/src/data/ticketJourneys.json`, copied from the existing demo catalogue. Fares use integer LKR minor units and are illustrative. Backend catalogue edits no longer change this app's catalogue.
+The initial catalogue combines `frontend/src/data/ticketJourneys.json` and the original demo search services. Admin-managed journeys and fares persist in the main local database and are read by ticketing, Route Search, and the fare calculator. Fares use integer LKR minor units and are illustrative. Backend catalogue edits no longer change this app's catalogue. Admin edits affect new quotes; issued tickets keep their fare snapshot. Withdrawing a journey blocks unpurchased quotes.
 
 ## Booking
 
@@ -59,3 +59,5 @@ On October 13, 2026, TypeScript, all 196 tests across 16 suites, and Android Jav
 Legacy v1 ticket documents are retained. Login verifies the old password before transferring tickets and quotes to the shared main-account ID, keeping references and QR payloads unchanged. Ticket-only passenger accounts can upgrade via the main or ticket login using their existing email/password. Imported passengers cannot grant themselves admin or Officer permissions. If an existing main account uses the same email but a different password, legacy records are preserved and not automatically linked; resolving that conflict requires a deliberate migration. Ticket-storage credentials never independently authorize current app access.
 
 Shared-account and Officer-metric changes on October 14, 2026 passed TypeScript, all 204 tests across 16 suites, and Android JavaScript export. Device/APK testing remains required.
+
+Admin ticket search reads local bookings without exposing QR credentials. Redemption records the verifier ID, name, and time with a durable local activity entry. Backup/restore includes this history; see [Admin guide](ADMIN.md).

@@ -4,6 +4,8 @@ import * as Crypto from 'expo-crypto';
 // The package's nested UMD entry has a separate package boundary in SDK 51.
 import bcrypt from 'bcryptjs/index.js';
 import { favouriteRoutes } from '../data/mockData';
+import { defaultJourneys, validAdministration, validJourney, Administration, ManagedJourney, SupportReport, Activity } from './adminTypes';
+import { storageIsBusy, recoverStorage, registerStorageQueue } from './StorageMaintenance';
 
 export const STORAGE_KEY = '@transitlink_app_v1';
 export const OFFICER_EMAIL = 'officer@transitlink.lk';
@@ -20,6 +22,7 @@ export interface PublicUser {
   avatar: string;
   createdAt: string;
   updatedAt: string;
+  disabled?: boolean;
 }
 
 export interface StoredUser extends PublicUser { passwordHash: string }
@@ -56,6 +59,7 @@ export interface LocalDatabase {
   notifications: LocalNotification[];
   savedRoutes: SavedRoute[];
   session: LocalSession | null;
+  administration?: Administration;
 }
 
 export interface RegistrationInput {
@@ -93,13 +97,18 @@ let pending: Promise<void> = Promise.resolve();
 let sessionSnapshot: AuthSession | null | undefined;
 let sessionGeneration = 0;
 let signOutGeneration = 0;
+registerStorageQueue(() => pending);
 
 // bcrypt needs a secure native random source in Hermes, where Node crypto and
 // browser WebCrypto are unavailable. Expo Crypto is included in SDK 51 Expo Go.
 bcrypt.setRandomFallback((length) => Array.from(Crypto.getRandomValues(new Uint8Array(length))));
 
 function serially<T>(operation: () => Promise<T>): Promise<T> {
-  const result = pending.then(operation);
+  if (storageIsBusy()) return Promise.reject(new LocalAppError('Backup or restore is running. Please try again shortly.', 503));
+  const result = pending.then(async () => {
+    try { await recoverStorage(); } catch (e) { throw new LocalAppError(`Could not read saved data on this device. ${e instanceof Error ? e.message : ''}`, 500); }
+    return operation();
+  });
   pending = result.then(() => undefined, () => undefined);
   return result;
 }
@@ -118,13 +127,13 @@ function phoneKey(value: string): string { return value.replace(/[\s()-]/g, '');
 function publicUser(user: StoredUser): PublicUser {
   return {
     _id: user._id, fullName: user.fullName, email: user.email, phone: user.phone,
-    role: user.role, avatar: user.avatar, createdAt: user.createdAt, updatedAt: user.updatedAt,
+    role: user.role, disabled: user.disabled ?? false, avatar: user.avatar, createdAt: user.createdAt, updatedAt: user.updatedAt,
   };
 }
 function authSession(database: LocalDatabase): AuthSession | null {
   if (!database.session) return null;
   const user = database.users.find((entry) => entry._id === database.session!.userId);
-  return user ? { token: database.session.token, user: publicUser(user) } : null;
+  return user && !user.disabled ? { token: database.session.token, user: publicUser(user) } : null;
 }
 function publishAuth(database: LocalDatabase, advanceGeneration = false): void {
   if (advanceGeneration) sessionGeneration += 1;
@@ -155,7 +164,7 @@ function assertGeneration(identity: Identity): void {
 function requireUser(database: LocalDatabase, identity: Identity): StoredUser {
   assertIdentity(database, identity);
   const user = database.users.find((entry) => entry._id === database.session?.userId);
-  if (!user || !database.session) throw new LocalAppError('Please log in to continue.', 401);
+  if (!user || user.disabled || !database.session) throw new LocalAppError('Please log in to continue.', 401);
   return user;
 }
 function newSession(userId: string): LocalSession {
@@ -166,6 +175,7 @@ function validUser(value: unknown): value is StoredUser {
   return isObject(value) && nonempty(value._id) && nonempty(value.fullName)
     && nonempty(value.email) && normalizedEmail(value.email) === value.email
     && /^\S+@\S+\.\S+$/.test(value.email) && typeof value.phone === 'string'
+    && (value.disabled === undefined || typeof value.disabled === 'boolean')
     && typeof value.avatar === 'string' && roles.includes(value.role as UserRole)
     && validDate(value.createdAt) && validDate(value.updatedAt)
     && typeof value.passwordHash === 'string' && /^\$2[aby]\$\d{2}\$[./A-Za-z0-9]{53}$/.test(value.passwordHash)
@@ -183,8 +193,8 @@ function validRoute(value: unknown): value is SavedRoute {
     && nonempty(value.duration) && typeof value.favorite === 'boolean' && typeof value.muted === 'boolean';
 }
 function unique(values: string[]): boolean { return new Set(values).size === values.length; }
-function validDatabase(value: unknown): value is LocalDatabase {
-  if (!isObject(value) || value.version !== 1 || !Array.isArray(value.users)
+export function validDatabase(value: unknown): value is LocalDatabase {
+  if (!isObject(value) || (value.administration !== undefined && !validAdministration(value.administration)) || value.version !== 1 || !Array.isArray(value.users)
     || !Array.isArray(value.notifications) || !Array.isArray(value.savedRoutes)
     || !value.users.every(validUser) || !value.notifications.every(validNotification)
     || !value.savedRoutes.every(validRoute)) return false;
@@ -350,7 +360,7 @@ export function loginUser(input: LoginInput): Promise<AuthenticatedUser> {
     if (!password) throw new LocalAppError('Please enter your password.');
     const user = database.users.find((entry) => entry.email === normalizedEmail(identifier))
       ?? database.users.find((entry) => entry.phone && phoneKey(entry.phone) === phoneKey(identifier));
-    if (!user || bcrypt.truncates(password) || !(await bcrypt.compare(password, user.passwordHash))) {
+    if (!user || user.disabled || bcrypt.truncates(password) || !(await bcrypt.compare(password, user.passwordHash))) {
       throw new LocalAppError('Invalid credentials.', 401);
     }
     if (signedOutAtStart !== signOutGeneration) throw new LocalAppError('Your session changed. Please try again.', 409);
@@ -433,6 +443,11 @@ export function deleteUserProfile(): Promise<{ message: string }> {
     const database = await readDatabase();
     const user = requireUser(database, identity);
     if (user.role === 'officer') throw new LocalAppError('The demonstration Officer account cannot be deleted.', 403);
+    ensureAnotherAdmin(database, user);
+    if (database.administration) {
+      database.administration.reports = database.administration.reports.filter(r => r.userId !== user._id);
+      appendActivity(database, user, 'Account deleted', user.email);
+    }
     database.users = database.users.filter((entry) => entry._id !== user._id);
     database.notifications = database.notifications.filter((entry) => entry.userId !== user._id);
     database.savedRoutes = database.savedRoutes.filter((entry) => entry.userId !== user._id);
@@ -541,4 +556,113 @@ export function toggleSavedRoute(id: string): Promise<SavedRoute> {
     assertGeneration(identity);
     return route;
   });
+}
+
+
+function administration(database: LocalDatabase): Administration {
+  return database.administration ??= { journeys: JSON.parse(JSON.stringify(defaultJourneys)), reports: [], activities: [] };
+}
+function appendActivity(database: LocalDatabase, actor: PublicUser, action: string, target: string) {
+  administration(database).activities.push({ id: Crypto.randomUUID(), actorId: actor._id, actorName: actor.fullName, action, target, at: new Date().toISOString() });
+}
+function requireAdmin(database: LocalDatabase, identity: Identity): StoredUser {
+  const user = requireUser(database, identity);
+  if (user.role !== 'admin') throw new LocalAppError('Admin access is required.', 403);
+  return user;
+}
+function ensureAnotherAdmin(database: LocalDatabase, target: StoredUser) {
+  if (target.role === 'admin' && !target.disabled && !database.users.some(u => u._id !== target._id && u.role === 'admin' && !u.disabled))
+    throw new LocalAppError('The last active admin account must be retained.', 409);
+}
+export function loadCatalogue(): Promise<ManagedJourney[]> {
+  return serially(async () => (await readDatabase()).administration?.journeys ?? JSON.parse(JSON.stringify(defaultJourneys)));
+}
+export function getAdminState() {
+  const identity = captureIdentity();
+  return serially(async () => {
+    const database = await readDatabase(); requireAdmin(database, identity);
+    return { users: database.users.map(publicUser), ...administration(database) };
+  });
+}
+export function updateManagedUser(userId: string, changes: { role?: 'admin' | 'passenger'; disabled?: boolean }) {
+  const identity = captureIdentity();
+  return serially(async () => {
+    const database = await readDatabase(); const actor = requireAdmin(database, identity);
+    const target = database.users.find(u => u._id === userId);
+    if (!target) throw new LocalAppError('User not found.', 404);
+    if (target.role === 'officer') throw new LocalAppError('The demonstration Officer account is protected.', 403);
+    if (changes.role !== undefined && !['admin', 'passenger'].includes(changes.role)) throw new LocalAppError('Select a valid role.');
+    if (changes.disabled !== undefined && typeof changes.disabled !== 'boolean') throw new LocalAppError('Select a valid account status.');
+    if ((changes.role === 'passenger' && target.role === 'admin') || (changes.disabled === true && !target.disabled)) ensureAnotherAdmin(database, target);
+    if (target._id === actor._id && (changes.disabled === true || changes.role === 'passenger')) throw new LocalAppError('Use another admin account to change your own access.', 409);
+    const before = `${target.role}/${target.disabled ? 'disabled' : 'active'}`;
+    if (changes.role !== undefined) target.role = changes.role;
+    if (changes.disabled !== undefined) target.disabled = changes.disabled;
+    target.updatedAt = new Date().toISOString();
+    appendActivity(database, actor, 'User access changed', `${target.email}: ${before} -> ${target.role}/${target.disabled ? 'disabled' : 'active'}`);
+    assertIdentity(database, identity); await writeDatabase(database); assertGeneration(identity);
+    publishAuth(database, true); return publicUser(target);
+  });
+}
+export function saveManagedJourney(input: ManagedJourney) {
+  const identity = captureIdentity();
+  return serially(async () => {
+    const database = await readDatabase(); const actor = requireAdmin(database, identity);
+    if (!validJourney(input)) throw new LocalAppError('Enter valid route details, times, and positive fares.');
+    const state = administration(database);
+    if (state.journeys.some(j => j.code === input.code && j.id !== input.id)) throw new LocalAppError('Route code already exists.');
+    const index = state.journeys.findIndex(j => j.id === input.id);
+    const entry: ManagedJourney = JSON.parse(JSON.stringify(input));
+    if (index < 0) state.journeys.push(entry); else state.journeys[index] = entry;
+    appendActivity(database, actor, index < 0 ? 'Route added' : 'Route updated', `${entry.code}: ${entry.from} to ${entry.to}`);
+    assertIdentity(database, identity); await writeDatabase(database); assertGeneration(identity); return entry;
+  });
+}
+export function createSupportReport(title: string, message: string): Promise<SupportReport> {
+  const identity = captureIdentity();
+  return serially(async () => {
+    const database = await readDatabase(); const user = requireUser(database, identity);
+    const now = new Date().toISOString();
+    const report: SupportReport = { id: Crypto.randomUUID(), userId: user._id, title: requiredText(title, 'Subject'), message: requiredText(message, 'Description'), status: 'Open', response: '', createdAt: now, updatedAt: now };
+    administration(database).reports.push(report);
+    // Retain the passenger notification alongside the report in one write.
+    database.notifications.push({ _id: Crypto.randomUUID(), userId: user._id, title: report.title, message: report.message, type: 'info', isRead: false, timestamp: now, createdAt: now, updatedAt: now });
+    assertIdentity(database, identity); await writeDatabase(database); assertGeneration(identity); return report;
+  });
+}
+export function getMySupportReports(): Promise<SupportReport[]> {
+  const identity = captureIdentity();
+  return serially(async () => {
+    const database = await readDatabase(); const user = requireUser(database, identity);
+    return administration(database).reports.filter(r => r.userId === user._id);
+  });
+}
+export function respondToReport(reportId: string, status: SupportReport['status'], response: string) {
+  const identity = captureIdentity();
+  return serially(async () => {
+    const database = await readDatabase(); const actor = requireAdmin(database, identity);
+    if (!['Open', 'In progress', 'Resolved'].includes(status)) throw new LocalAppError('Select a valid report status.');
+    const report = administration(database).reports.find(r => r.id === reportId);
+    if (!report) throw new LocalAppError('Report not found.', 404);
+    if (typeof response !== 'string') throw new LocalAppError('Enter a response.');
+    report.status = status; report.response = response.trim(); report.handledBy = actor._id; report.updatedAt = new Date().toISOString();
+    if (report.response && database.users.some(u => u._id === report.userId)) {
+      const now = report.updatedAt;
+      database.notifications.push({ _id: Crypto.randomUUID(), userId: report.userId, title: `Support: ${report.title} (${status})`, message: report.response, type: 'info', isRead: false, timestamp: now, createdAt: now, updatedAt: now });
+    }
+    appendActivity(database, actor, 'Support report updated', `${report.title}: ${status}`);
+    assertIdentity(database, identity); await writeDatabase(database); assertGeneration(identity); return report;
+  });
+}
+export function recordAdminActivity(action: string, target: string) {
+  const identity = captureIdentity();
+  return serially(async () => {
+    const database = await readDatabase(); const actor = requireAdmin(database, identity);
+    appendActivity(database, actor, action, target);
+    assertIdentity(database, identity); await writeDatabase(database); assertGeneration(identity);
+  });
+}
+export function notifyStorageRestored() {
+  signOutGeneration += 1; sessionGeneration += 1; sessionSnapshot = null;
+  for (const listener of listeners) { try { listener(null); } catch {} }
 }

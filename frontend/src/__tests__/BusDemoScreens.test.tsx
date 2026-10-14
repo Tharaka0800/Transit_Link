@@ -1,11 +1,14 @@
 import React from 'react';
 import { Text, TouchableOpacity, TextInput } from 'react-native';
 import { act, create, ReactTestRenderer } from 'react-test-renderer';
+import { defaultJourneys } from '../services/adminTypes';
+import { loadCatalogue } from '../services/LocalAppStorage';
+jest.mock('../services/LocalAppStorage', () => ({ loadCatalogue: jest.fn() }));
 import { router } from 'expo-router';
 import { RouteSearchScreen, BusStatusScreen, BusETAScreen } from '../screens/BusDemoScreens';
 
 let mockParams: { busId?: string } = {};
-jest.mock('expo-router', () => ({ router: { push: jest.fn(), canGoBack: () => false, replace: jest.fn() }, useLocalSearchParams: () => mockParams }));
+jest.mock('expo-router', () => ({ router: { push: jest.fn(), canGoBack: () => false, replace: jest.fn() }, useLocalSearchParams: () => mockParams, useFocusEffect: (callback: () => void) => require('react').useEffect(callback, [callback]) }));
 jest.mock('@expo/vector-icons', () => ({ Ionicons: () => null }));
 jest.mock('react-native-safe-area-context', () => ({ SafeAreaView: require('react-native').View }));
 jest.mock('../components/BusMap', () => () => null);
@@ -14,10 +17,11 @@ const content = () => screen.root.findAllByType(Text).map(node => node.props.chi
 function press(label: string) {
   act(() => screen.root.findAllByType(TouchableOpacity).find(node => node.props.accessibilityLabel === label)!.props.onPress());
 }
+beforeEach(() => { jest.mocked(loadCatalogue).mockResolvedValue(defaultJourneys); });
 afterEach(() => { act(() => screen.unmount()); mockParams = {}; });
 
-test('route search filters entered locations and links the matching bus', () => {
-  act(() => { screen = create(<RouteSearchScreen />); });
+test('route search filters entered locations and links the matching bus', async () => {
+  await act(async () => { screen = create(<RouteSearchScreen />); });
   press('Search Routes');
   expect(content()).toContain('Bus 154');
   expect(content()).toContain('Bus status unavailable');
@@ -25,12 +29,12 @@ test('route search filters entered locations and links the matching bus', () => 
   expect(router.push).toHaveBeenCalledWith({ pathname: '/bus-status', params: { busId: '1' } });
   act(() => screen.root.findAllByType(TextInput)[1].props.onChangeText('Galle'));
   press('Search Routes');
-  expect(content()).toContain('No demo routes match');
+  expect(content()).toContain('Galle');
   expect(content()).not.toContain('Bus 154');
 });
 
-test('empty search locations report validation instead of displaying all routes', () => {
-  act(() => { screen = create(<RouteSearchScreen />); });
+test('empty search locations report validation instead of displaying all routes', async () => {
+  await act(async () => { screen = create(<RouteSearchScreen />); });
   act(() => screen.root.findAllByType(TextInput)[0].props.onChangeText(' '));
   press('Search Routes');
   expect(content()).toContain('Enter both locations');

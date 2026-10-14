@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { storageIsBusy, recoverStorage, registerStorageQueue } from '../services/StorageMaintenance';
 
 export interface IncidentAlert {
   id: string;
@@ -16,11 +17,16 @@ const STORAGE_KEY = '@transit_incidents';
 const EDITABLE_FIELDS = ['busId', 'route', 'delayTime', 'status'] as const;
 let nextId = 0;
 let pending: Promise<void> = Promise.resolve();
+registerStorageQueue(() => pending);
 
 // Every operation shares this queue, including the initial sample-data write.
 // Recovering the queue after rejection lets users retry a failed operation.
 function serially<T>(operation: () => Promise<T>): Promise<T> {
-  const result = pending.then(operation);
+  if (storageIsBusy()) return Promise.reject(new Error('Backup or restore is running. Please try again shortly.'));
+  const result = pending.then(async () => {
+    try { await recoverStorage(); } catch (e) { throw new Error(`Could not read saved incidents on this device. ${e instanceof Error ? e.message : ''}`); }
+    return operation();
+  });
   pending = result.then(() => undefined, () => undefined);
   return result;
 }
@@ -37,7 +43,7 @@ function isStatus(value: unknown): value is IncidentAlert['status'] {
   return value === 'URGENT' || value === 'WARNING' || value === 'RESOLVED';
 }
 
-function validateIncident(value: unknown): value is IncidentAlert {
+export function validateIncident(value: unknown): value is IncidentAlert {
   return isObject(value)
     && isNonemptyString(value.id)
     && isNonemptyString(value.busId)

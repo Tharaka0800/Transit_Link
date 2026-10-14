@@ -8,6 +8,8 @@ import RoutesScreen from '../screens/RoutesScreen';
 import HelpSupport from '../screens/HelpSupport';
 import Navbar from '../components/Navbar';
 import * as api from '../services/api';
+import { createSupportReport, getMySupportReports } from '../services/LocalAppStorage';
+jest.mock('../services/LocalAppStorage', () => ({ createSupportReport: jest.fn(), getMySupportReports: jest.fn() }));
 
 let mockAuth: any;
 let mockFocusSetup: (() => void | (() => void)) | undefined;
@@ -60,6 +62,7 @@ function list() { return screen!.root.findByType(FlatList).props.data; }
 function text() { return screen!.root.findAllByType(Text).map((node) => node.props.children).join(' '); }
 
 beforeEach(() => {
+  jest.mocked(getMySupportReports).mockResolvedValue([]);
   mockAuth = { session: { token: 'local:passenger-session', user }, isRestoring: false, loading: false };
   jest.spyOn(Alert, 'alert').mockImplementation(() => {});
   jest.mocked(api.getUserProfile).mockResolvedValue({ data: user } as any);
@@ -255,14 +258,14 @@ test('Routes adds a persisted sample and ignores an old Add confirmation after s
 
 test('Help & Support saves reports locally once and states that they were saved on this device', async () => {
   const pending = deferred<any>();
-  jest.mocked(api.createNotification).mockReturnValueOnce(pending.promise);
+  jest.mocked(createSupportReport).mockReturnValueOnce(pending.promise);
   await render(<HelpSupport />);
   await press('Report an Issue');
   act(() => { input('Subject').props.onChangeText('Bus issue'); input('Tell us what went wrong...').props.onChangeText('No announcement'); });
   const report = control('Submit Issue').props.onPress;
   act(() => { report(); report(); });
-  expect(api.createNotification).toHaveBeenCalledTimes(1);
-  expect(api.createNotification).toHaveBeenCalledWith({ title: 'Bus issue', message: 'No announcement', type: 'info' });
-  await act(async () => { pending.resolve({ data: notification }); });
-  expect(Alert.alert).toHaveBeenCalledWith('Saved', 'Your issue has been saved on this device.');
+  expect(createSupportReport).toHaveBeenCalledTimes(1);
+  expect(createSupportReport).toHaveBeenCalledWith('Bus issue', 'No announcement');
+  await act(async () => { pending.resolve({ ...notification, id: notification._id, status: 'Open', response: '' }); });
+  expect(Alert.alert).toHaveBeenCalledWith('Saved', 'Your issue is available to the admin on this device.');
 });
