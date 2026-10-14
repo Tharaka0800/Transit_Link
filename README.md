@@ -11,7 +11,7 @@ TransitLink is a university transit prototype built with Expo SDK 51, React Nati
 | Passenger accounts | Registration, login, profiles, notifications, settings, support reports | Local device storage |
 | Officer dashboard | Create, read, edit, and resolve incidents | Local Officer account |
 
-Bus positions, ETAs, fares, and schedules are illustrative. Payments are simulated and collect no funds. Main app accounts and local ticket accounts are separate.
+Bus positions, ETAs, fares, and schedules are illustrative. Payments are simulated and collect no funds. Profiles and tickets use the same main app account.
 
 ## Run the frontend
 
@@ -29,9 +29,9 @@ Local accounts, Officer alerts, route search, and bus details do not require the
 
 ## Local tickets
 
-Open **Tickets > Sign in** and register a local ticket account, or use one of the passenger demo accounts below. Tickets, seat holds, purchases, and history persist in AsyncStorage without a backend. QR verification requires the separate ticket admin login: `admin@transitlink.lk` / `admin123`.
+Sign in once using the main app login, then open **Tickets**. You can also sign in or register through Tickets; this uses the same app account. Tickets, seat holds, purchases, and history persist in AsyncStorage without a backend. QR verification requires the admin app account: `admin@transitlink.lk` / `admin123`.
 
-Tickets and seat availability are scoped to one installation. Only tickets created on that installation can be verified; devices do not synchronize bookings or consumption. Main app registration and ticket registration remain separate. MongoDB accounts and tickets are not automatically imported, and the retained backend/database are not modified. `EXPO_PUBLIC_API_URL` is no longer used by the app's ticket flows. See [ticketing details](TICKETING.md).
+Tickets and seat availability are scoped to one installation. Only tickets created on that installation can be verified; devices do not synchronize bookings or consumption. Account registration, profile changes, and logout are shared between profiles and tickets. MongoDB accounts and tickets are not automatically imported, and the retained backend/database are not modified. `EXPO_PUBLIC_API_URL` is no longer used by the app's ticket flows. See [ticketing details](TICKETING.md).
 
 ## Local demo accounts
 
@@ -42,14 +42,14 @@ Tickets and seat availability are scoped to one installation. Only tickets creat
 | Admin | `admin@transitlink.lk` | `admin123` |
 | Transport officer | `officer@transitlink.lk` | `OfficerDemo@2026` |
 
-Accounts initialize when local storage is first created. Officer login opens SmartBus Dashboard; other roles open Home. Passenger and admin ticket demo accounts initialize separately when ticket storage is first created.
+Accounts initialize when local storage is first created. Officer login opens SmartBus Dashboard; other roles open Home. The same passenger and admin accounts are used for tickets. Legacy local ticket-only passengers can sign in with their old credentials to upgrade and link their ticket history. Matching email addresses alone do not transfer ticket ownership.
 
 ## Demonstration
 
 1. Open **Home > Find Routes > Search Routes**. Search Colombo Fort to Kandy, open Bus 154's status, then view its arrival time. **Open Bus Map** lists all demo buses.
 2. Sign in locally, edit a profile, manage notifications, and add a sample saved route. Restart to check persistence.
 3. Sign in through Tickets, choose a journey and seats/passenger count, and confirm a demo purchase. View the tickets and QR codes.
-4. Choose **Verify ticket QR** from Tickets and sign in with the local admin ticket account on the same installation. Preview a QR/manual token, then explicitly mark it used.
+4. Choose **Verify ticket QR** from Tickets and sign in with the admin app account on the same installation. Preview a QR/manual token, then explicitly mark it used.
 5. Sign in locally as Officer. Create an alert, edit it, and choose **Resolve** to remove it.
 
 ## Validation
@@ -84,4 +84,6 @@ On October 13, 2026, the AsyncStorage ticket migration passed TypeScript, all 19
 - [Legacy backend setup and booking API](backend/README.md)
 - [Ticketing design, verification, and limitations](TICKETING.md)
 
-Local records do not synchronize across installations. Clearing app storage removes them. Bus locations and ETAs are fixed demo values. Password recovery, live GPS tracking, real payments, and production role provisioning are outside the implemented scope. Officer metrics are static; support reports are saved locally.
+Local records do not synchronize across installations. Clearing app storage removes them. Bus locations and ETAs are fixed demo values. Password recovery, live GPS tracking, real payments, and production role provisioning are outside the implemented scope. Officer bus/route counts use the demo catalogue; urgent-alert and affected-route counts use saved incidents. On-time and rerouting data are unavailable; support reports are saved locally.
+
+Shared-account and Officer-metric changes on October 14, 2026 passed TypeScript, all 204 tests across 16 suites, and Android JavaScript export. Device/APK testing remains required.

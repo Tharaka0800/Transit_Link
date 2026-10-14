@@ -1,4 +1,4 @@
-import { localTicketRequest, readTicketAccount, clearLocalTicketSession } from './LocalTicketStorage';
+import { localTicketRequest, readTicketAccount, clearLocalTicketSession, loginUnifiedAccount, registerUnifiedAccount } from './LocalTicketStorage';
 
 export interface TicketAccount {
   _id: string; fullName: string; email: string; phone?: string; role: string; token: string;
@@ -13,10 +13,10 @@ const api = {
   post: async <T = any>(path: string, body?: unknown): Promise<{ data: T }> => ({ data: await localTicketRequest('POST', path, body) }),
 };
 export async function loginTicketAccount(email: string, password: string) {
-  return (await api.post<TicketAccount>('/users/login', { email, password })).data;
+  return loginUnifiedAccount({ email, password });
 }
 export async function registerTicketAccount(fullName: string, email: string, phone: string, password: string) {
-  return (await api.post<TicketAccount>('/users/register', { fullName, email, phone, password })).data;
+  return registerUnifiedAccount({ fullName, email, phone, password });
 }
 export const getUserProfile = () => api.get<TicketAccount>('/users/profile');
 export default api;

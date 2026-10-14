@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Crypto from 'expo-crypto';
 import bcrypt from 'bcryptjs/index.js';
+import * as mainAccount from './LocalAppStorage';
 import catalogue from '../data/ticketJourneys.json';
 import type { TicketAccount } from './ticketApi';
 import type { Journey, Quote, Ticket, BusTrip } from './ticketService';
@@ -31,7 +32,7 @@ class TicketStorageError extends Error {
 function fail(message: string, status = 400): never { throw new TicketStorageError(message, status); }
 const id = () => Crypto.randomUUID();
 bcrypt.setRandomFallback(length => Array.from(Crypto.getRandomValues(new Uint8Array(length))));
-const hash = (password: string) => bcrypt.hash(password, 10);
+mainAccount.subscribeAuth(() => { authGeneration += 1; });
 const date = (value: unknown) => typeof value === 'string' && Number.isFinite(Date.parse(value));
 const object = (value: any) => value && typeof value === 'object' && !Array.isArray(value);
 const string = (value: unknown) => typeof value === 'string' && value.length > 0;
@@ -61,13 +62,7 @@ async function read(): Promise<Database> {
     if (!valid(db)) return fail('Saved ticket data is invalid and has been preserved.', 500);
     return db;
   }
-  const accounts: Account[] = [];
-  for (const [fullName, email, password, role] of [
-    ['Tharukee Amasha', 'tharukee01@gmail.com', 'password123', 'passenger'],
-    ['Kasun Perera', 'passenger.demo@transitlink.lk', 'password123', 'passenger'],
-    ['TransitLink Admin', 'admin@transitlink.lk', 'admin123', 'admin'],
-  ]) accounts.push({ _id: id(), fullName, email, phone: '', role, passwordHash: await hash(password) });
-  const db: Database = { version: 1, accounts, session: null, quotes: [], tickets: [], trips: [] };
+  const db: Database = { version: 1, accounts: [], session: null, quotes: [], tickets: [], trips: [] };
   await save(db);
   return db;
 }
@@ -75,20 +70,85 @@ async function save(db: Database) {
   try { await AsyncStorage.setItem(TICKET_STORAGE_KEY, JSON.stringify(db)); }
   catch { fail('Could not save tickets on this device. Check available storage and try again.', 500); }
 }
-function accountView(db: Database): TicketAccount | null {
-  const a = db.accounts.find(a => a._id === db.session?.userId);
-  if (!a || !db.session) return null;
-  const { passwordHash, ...publicAccount } = a;
-  return { ...publicAccount, token: db.session.token };
+export async function readTicketAccount(): Promise<TicketAccount | null> {
+  const session = await mainAccount.getAuthSession();
+  return session ? { ...session.user, token: session.token } : null;
 }
-export const readTicketAccount = () => serial(async () => accountView(await read()));
+
+// Keep v1 ticket records and credentials until the owner proves the old password.
+// Matching email addresses alone never grant ownership of legacy tickets.
+async function linkLegacyTickets(user: TicketAccount, password: string) {
+  return serial(async () => {
+    if (await AsyncStorage.getItem(TICKET_STORAGE_KEY) === null) return;
+    const db = await read();
+    const legacy = db.accounts.find(a => a.email === user.email);
+    if (!legacy || bcrypt.truncates(password) || !(await bcrypt.compare(password, legacy.passwordHash))) return;
+    if ((await mainAccount.getAuthSession())?.token !== user.token) fail('Your session changed. Please sign in again.', 401);
+    for (const ticket of db.tickets) if (ticket.userId === legacy._id) ticket.userId = user._id;
+    for (const quote of db.quotes) if (quote.userId === legacy._id) quote.userId = user._id;
+    db.accounts = db.accounts.filter(a => a._id !== legacy._id);
+    db.session = null;
+    await save(db);
+  });
+}
+
+export async function loginUnifiedAccount(input: mainAccount.LoginInput): Promise<TicketAccount> {
+  const generation = ++authGeneration;
+  let user: TicketAccount;
+  try { user = await mainAccount.loginUser(input); }
+  catch (error) {
+    // A ticket-only passenger can upgrade using their existing credentials.
+    if ((error as mainAccount.LocalAppError).response?.status !== 401) throw error;
+    const legacy = await serial(async () => {
+      if (await AsyncStorage.getItem(TICKET_STORAGE_KEY) === null) return null;
+      const db = await read();
+      const identifier = (input.email || input.phone || '').trim().toLowerCase();
+      const a = db.accounts.find(a => a.email === identifier);
+      return a && !bcrypt.truncates(input.password) && await bcrypt.compare(input.password, a.passwordHash) ? a : null;
+    });
+    if (generation !== authGeneration) fail('Your session changed. Please sign in again.', 401);
+    if (!legacy || legacy.role !== 'passenger') throw error;
+    // Duplicate main accounts reject this import, rather than overriding passwords.
+    user = await mainAccount.registerUser({ fullName: legacy.fullName, email: legacy.email, phone: legacy.phone, password: input.password });
+  }
+  await linkLegacyTickets(user, input.password);
+  return user;
+}
+export async function registerUnifiedAccount(input: mainAccount.RegistrationInput): Promise<TicketAccount> {
+  authGeneration += 1;
+  const user = await mainAccount.registerUser(input);
+  await linkLegacyTickets(user, input.password);
+  return user;
+}
 export function clearLocalTicketSession() {
   authGeneration += 1;
-  return serial(async () => {
+  const clearMain = mainAccount.clearAuth();
+  const clearLegacy = serial(async () => {
     const raw = await AsyncStorage.getItem(TICKET_STORAGE_KEY);
     if (raw !== null) { const db = await read(); db.session = null; await save(db); }
-    // Obsolete server credentials never authorize local ticket access.
     await AsyncStorage.removeItem('@transitlink_online_ticket_session');
+  });
+  return Promise.all([clearMain, clearLegacy]).then(() => undefined);
+}
+
+export function deleteAccountTickets<T>(userId: string, deleteMain: () => Promise<T>): Promise<T> {
+  authGeneration += 1;
+  return serial(async () => {
+    if ((await mainAccount.getUserProfile())._id !== userId) fail('Your session changed. Please try again.', 401);
+    if (await AsyncStorage.getItem(TICKET_STORAGE_KEY) === null) return deleteMain();
+    const db = await read();
+    const original: Database = JSON.parse(JSON.stringify(db));
+    db.tickets = db.tickets.filter(t => t.userId !== userId);
+    db.quotes = db.quotes.filter(q => q.userId !== userId);
+    await save(db);
+    try {
+      if ((await mainAccount.getUserProfile())._id !== userId) fail('Your session changed. Please try again.', 401);
+      return await deleteMain();
+    } catch (error) {
+      // A rejected main-account deletion must not silently lose its ticket history.
+      await save(original);
+      throw error;
+    }
   });
 }
 function status(t: Ticket): Ticket['status'] {
@@ -109,32 +169,22 @@ function tripView(db: Database, trip: Trip): BusTrip {
   return { id: trip.id, busName: trip.busName, departureAt: trip.departureAt, seats, availableSeats: seats.filter(s => s.status === 'available').length };
 }
 export function localTicketRequest(method: string, path: string, input: unknown = {}): Promise<any> {
-  if (method === 'POST' && ['/users/login', '/users/register'].includes(path)) authGeneration += 1;
+  const identity = mainAccount.getAuthSession();
   const generation = authGeneration;
   return serial(async () => {
     if (generation !== authGeneration) fail('Your session changed. Please sign in again.', 401);
-    const db = await read();
-    const body: any = object(input) ? input : {};
-    const commit = async () => {
-      if (generation !== authGeneration) fail('Your session changed. Please sign in again.', 401);
-      await save(db);
+    const session = await identity;
+    if (!session) fail('Sign in to your app account to continue.', 401);
+    const user = { ...session.user, token: session.token };
+    const assertSession = async () => {
+      if (generation !== authGeneration || (await mainAccount.getAuthSession())?.token !== user.token)
+        fail('Your session changed. Please sign in again.', 401);
     };
-    if (method === 'POST' && ['/users/login', '/users/register'].includes(path)) {
-      const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
-      if (!/^\S+@\S+\.\S+$/.test(email) || typeof body.password !== 'string' || !body.password) fail('Enter a valid email and password.');
-      let a = db.accounts.find(a => a.email === email);
-      if (path === '/users/register') {
-        if (a) fail('A ticket account already exists with this email.');
-        if (typeof body.fullName !== 'string' || !body.fullName.trim() || body.password.length < 6) fail('Enter your name and a password of at least 6 characters.');
-        a = { _id: id(), fullName: body.fullName.trim(), email, phone: typeof body.phone === 'string' ? body.phone.trim() : '', role: 'passenger', passwordHash: await hash(body.password) };
-        db.accounts.push(a);
-      } else if (!a || !(await bcrypt.compare(body.password, a.passwordHash))) fail('Invalid ticket account credentials.', 401);
-      db.session = { userId: a!._id, token: `local-ticket:${id()}` };
-      await commit();
-      return accountView(db);
-    }
-    const user = accountView(db);
-    if (!user) fail('Sign in to your ticket account to continue.', 401);
+    await assertSession();
+    const db = await read();
+    await assertSession();
+    const body: any = object(input) ? input : {};
+    const commit = async () => { await assertSession(); await save(db); await assertSession(); };
     if (method === 'GET' && path === '/users/profile') return user;
     if (method === 'GET' && path === '/tickets/journeys') return { journeys };
     const tripsMatch = path.match(/^\/tickets\/journeys\/([^/]+)\/trips$/);
@@ -212,7 +262,7 @@ export function localTicketRequest(method: string, path: string, input: unknown 
     }
     if (method === 'GET' && path === '/tickets') return { tickets: db.tickets.filter(t => t.userId === user._id).sort((a, b) => b.purchasedAt.localeCompare(a.purchasedAt)).map(t => view(t)) };
     if (method === 'POST' && ['/tickets/verify', '/tickets/redeem'].includes(path)) {
-      if (user.role !== 'admin') fail('Ticket verification requires the local admin ticket account.', 403);
+      if (user.role !== 'admin') fail('Ticket verification requires the admin app account.', 403);
       const payload = typeof body.payload === 'string' ? body.payload.trim() : '';
       if (!/^TL1:[a-f0-9]{64}$/.test(payload)) fail('This is not a TransitLink ticket QR.');
       const ticket = db.tickets.find(t => t.qrPayload === payload);

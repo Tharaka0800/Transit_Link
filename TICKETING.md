@@ -4,9 +4,9 @@ The app uses AsyncStorage for ticket accounts, journeys, bus seats, quotes, purc
 
 ## Data and accounts
 
-`frontend/src/services/LocalTicketStorage.ts` saves a versioned document at `@transitlink_tickets_v1`. It does not overwrite `@transitlink_app_v1` (main accounts/profiles) or `@transit_incidents` (Officer alerts). Ticket accounts remain separate from main app accounts to preserve the existing login flows. Main app logout/deletion clears the ticket session but does not delete the separate ticket account or history.
+`frontend/src/services/LocalTicketStorage.ts` saves a versioned document at `@transitlink_tickets_v1`. It does not overwrite `@transitlink_app_v1` (main accounts/profiles) or `@transit_incidents` (Officer alerts). Ticket authentication uses the main app account/session. Main login and registration immediately work for tickets. Profile edits are reflected in future purchases; existing issued tickets retain their original passenger name. Account switching and logout apply across the app. Account deletion removes that owner's ticket records and quotes without affecting other owners.
 
-Ticket demo accounts initialize only if the ticket storage key is absent:
+The main app provides these shared demo accounts:
 
 | Role | Email | Password |
 | --- | --- | --- |
@@ -14,23 +14,23 @@ Ticket demo accounts initialize only if the ticket storage key is absent:
 | Passenger | `passenger.demo@transitlink.lk` | `password123` |
 | Admin verifier | `admin@transitlink.lk` | `admin123` |
 
-Registration always creates passengers. Passwords are stored as salted bcrypt hashes using Expo Crypto randomness. Session/profile responses contain no password hashes. Server JWTs do not grant local access. Previously registered MongoDB accounts and tickets remain on the server and are not automatically copied into AsyncStorage; register a new local ticket account as needed.
+Registration always creates passengers. Passwords are stored as salted bcrypt hashes using Expo Crypto randomness. Session/profile responses contain no password hashes. Server JWTs do not grant local access. Previously registered MongoDB accounts and tickets remain on the server and are not automatically copied into AsyncStorage; register a main app account as needed.
 
 The bundled catalogue is `frontend/src/data/ticketJourneys.json`, copied from the existing demo catalogue. Fares use integer LKR minor units and are illustrative. Backend catalogue edits no longer change this app's catalogue.
 
 ## Booking
 
-1. Open Tickets and sign in to a local ticket account.
+1. Sign in to the main app and open Tickets. The ticket sign-in page also authenticates the same main account; no second session is created.
 2. Choose a journey and ticket type. For buses select a departure and 1?10 unique seats. For trains select 1?10 passengers and travel now or schedule within 30 days.
 3. Review the quote and simulated payment method. Quotes expire within five minutes or at departure, whichever is sooner. Editing/releasing a quote frees held seats.
 4. Confirm explicitly. Each passenger gets a distinct ticket, reference, and random QR token. A bus purchase converts holds to occupied seats on this installation.
 5. View My Tickets, details, fullscreen QR, and history. Records survive app restarts. Retrying the same quote returns the same booking and preserves the original payment method.
 
-Bus services are generated at 08:00, 12:00, 16:00, and 20:00 Sri Lanka time for the next seven days. Availability is shared between ticket accounts on this installation only. Displayed times follow the device timezone. Ticket screens retain their existing refresh behavior, now reading local storage.
+Bus services are generated at 08:00, 12:00, 16:00, and 20:00 Sri Lanka time for the next seven days. Availability is shared between app accounts on this installation only. Displayed times follow the device timezone. Ticket screens retain their existing refresh behavior, now reading local storage.
 
 ## Verification
 
-Copy a ticket's complete manual `TL1:` token, switch to the local admin ticket account on the same installation, open Verify ticket QR, and enter the token. Native camera scanning remains available, but the scanned ticket must already exist in this installation's storage. Preview does not consume a ticket. Validate & mark used records consumption; concurrent requests accept it once. Used, future, expired, malformed, and unknown tickets are rejected appropriately.
+Copy a ticket's complete manual `TL1:` token, switch to the admin app account on the same installation, open Verify ticket QR, and enter the token. Native camera scanning remains available, but the scanned ticket must already exist in this installation's storage. Preview does not consume a ticket. Validate & mark used records consumption; concurrent requests accept it once. Used, future, expired, malformed, and unknown tickets are rejected appropriately.
 
 QR payloads contain only `TL1:` plus a cryptographically random 256-bit token. Owner-scoped details include the QR; list and verifier responses omit the token. A QR from another phone cannot be validated without a shared backend. Copying a QR does not import its ticket record.
 
@@ -53,3 +53,9 @@ npx expo export --platform android --output-dir dist-local-tickets
 Tests cover existing profiles, routes, Officer flows, and ticket screens, plus local ticket authentication, account isolation, group purchases, retries, seat holds/release/expiry, ownership, single-use QR validation, storage failures, malformed data preservation, and pending-operation invalidation. JavaScript export checks bundling; an APK/device smoke test is still required for camera and persistence behavior.
 
 On October 13, 2026, TypeScript, all 196 tests across 16 suites, and Android JavaScript export passed. No APK was built or installed during this change.
+
+## Shared-account migration
+
+Legacy v1 ticket documents are retained. Login verifies the old password before transferring tickets and quotes to the shared main-account ID, keeping references and QR payloads unchanged. Ticket-only passenger accounts can upgrade via the main or ticket login using their existing email/password. Imported passengers cannot grant themselves admin or Officer permissions. If an existing main account uses the same email but a different password, legacy records are preserved and not automatically linked; resolving that conflict requires a deliberate migration. Ticket-storage credentials never independently authorize current app access.
+
+Shared-account and Officer-metric changes on October 14, 2026 passed TypeScript, all 204 tests across 16 suites, and Android JavaScript export. Device/APK testing remains required.

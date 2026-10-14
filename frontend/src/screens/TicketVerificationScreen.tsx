@@ -204,7 +204,7 @@ export default function TicketVerificationScreen() {
             </Text>
             <Text style={styles.subtitle}>
               {error ||
-                'Verification requires the local admin ticket account. Only tickets created on this installation can be verified. Officer alerts use your separate Officer account.'}
+                'Verification requires an admin app account. Only tickets created on this installation can be verified. Switching accounts changes your login throughout the app.'}
             </Text>
             {access === 'signedOut' ? (
               <Button onPress={() => router.push({ pathname: '/ticketing/login', params: { next: 'verify' } })}>Sign in</Button>
@@ -221,7 +221,7 @@ export default function TicketVerificationScreen() {
                 variant="secondary"
                 onPress={() => router.push({ pathname: '/ticketing/login', params: { next: 'verify' } })}
               >
-                Switch local ticket account
+                Switch app account
               </Button>
             )}
           </View>

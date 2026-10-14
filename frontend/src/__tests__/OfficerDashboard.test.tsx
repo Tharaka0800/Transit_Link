@@ -112,11 +112,11 @@ afterEach(() => {
   screen = undefined;
 });
 
-test('loads local incidents once on mount and shows all six prototype metrics', async () => {
+test('loads local incidents once on mount and shows all six locally supported metrics', async () => {
   await renderDashboard();
   expect(mockGet).toHaveBeenCalledTimes(1);
   expect(incidents()).toEqual([incident]);
-  for (const label of ['SmartBus Dashboard', 'Active Buses', 'On Time', 'Total Routes', 'Urgent Alerts', 'Delay Hotspots', 'Rerouting']) {
+  for (const label of ['SmartBus Dashboard', 'Demo Buses', 'On Time', 'Total Routes', 'Urgent Alerts', 'Delay Hotspots', 'Rerouting']) {
     expect(textContent()).toContain(label);
   }
 });
@@ -222,4 +222,39 @@ test('ignores pending local reads after the dashboard unmounts', async () => {
   act(() => { screen!.unmount(); });
   screen = undefined;
   await act(async () => { pending.resolve([incident]); });
+});
+
+function metric(label: string) {
+  const title = screen!.root.findAllByType(Text).find(node => node.props.children === label)!;
+  return title.parent!.findAllByType(Text)[0].props.children;
+}
+test('metrics count urgent alerts and distinct unresolved routes and update after resolve', async () => {
+  mockGet.mockResolvedValueOnce([
+    incident,
+    { ...incident, id: 'same-route', status: 'WARNING' },
+    { ...incident, id: 'another-route', route: 'Galle to Colombo', status: 'URGENT' },
+    { ...incident, id: 'resolved-route', route: 'Resolved route', status: 'RESOLVED' },
+  ]);
+  await renderDashboard();
+  expect(metric('Urgent Alerts')).toBe('2');
+  expect(metric('Delay Hotspots')).toBe('2');
+  expect(metric('Demo Buses')).toBe('3');
+  expect(metric('Total Routes')).toBe('4');
+  expect(metric('On Time')).toBe('Unavailable');
+  expect(metric('Rerouting')).toBe('Unavailable');
+  mockGet.mockResolvedValueOnce([]);
+  await act(async () => { button('Resolve alert for bus 154').props.onPress(); });
+  expect(metric('Urgent Alerts')).toBe('0');
+  expect(metric('Delay Hotspots')).toBe('0');
+});
+
+test('failed incident reads do not present invented zero counts', async () => {
+  mockGet.mockRejectedValueOnce(new Error('Storage unavailable'));
+  await renderDashboard();
+  expect(metric('Urgent Alerts')).toBe('Unavailable');
+  expect(metric('Delay Hotspots')).toBe('Unavailable');
+  mockGet.mockResolvedValueOnce([incident]);
+  await act(async () => { button('Retry').props.onPress(); });
+  expect(metric('Urgent Alerts')).toBe('1');
+  expect(metric('Delay Hotspots')).toBe('1');
 });

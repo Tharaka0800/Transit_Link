@@ -21,19 +21,20 @@ async function busQuote() {
   return { journey, trip, quote: await quoteJourney(journey.id, 'standard', trip.departureAt, 2, { tripId: trip.id, seats: ['01A', '01B'] }) };
 }
 
-test('ticket login is local, hashes passwords, and preserves other app storage', async () => {
-  await AsyncStorage.setItem('@transitlink_app_v1', 'local-data-sentinel');
+test('main login supplies the same account and token to tickets without a second login', async () => {
   await AsyncStorage.setItem('@transit_incidents', 'officer-sentinel');
   await AsyncStorage.setItem('@transitlink_online_ticket_session', JSON.stringify({ role: 'admin', token: 'jwt' }));
   expect(await getToken()).toBeNull();
-  await passenger();
-  expect(await getToken()).toMatch(/^local-ticket:/);
-  expect((await getUserProfile()).data.role).toBe('passenger');
-  expect(await AsyncStorage.getItem('@transitlink_app_v1')).toBe('local-data-sentinel');
+  const { data: user } = await localApi.loginUser({ email: 'passenger.demo@transitlink.lk', password: 'password123' });
+  expect(await getToken()).toBe(user.token);
+  expect((await getUserProfile()).data._id).toBe(user._id);
+  expect((await localApi.getUserProfile()).data._id).toBe(user._id);
+  await purchaseQuote((await trainQuote()).id);
   expect(await AsyncStorage.getItem('@transit_incidents')).toBe('officer-sentinel');
   const db = JSON.parse((await AsyncStorage.getItem(TICKET_STORAGE_KEY))!);
-  expect(db.accounts[0].passwordHash).toMatch(/^\$2/);
-  expect(db.accounts[0]).not.toHaveProperty('password');
+  expect(db.accounts).toEqual([]);
+  expect(db.session).toBeNull();
+  expect(db.tickets[0].userId).toBe(user._id);
   expect((await getUserProfile()).data).not.toHaveProperty('passwordHash');
 });
 
@@ -153,7 +154,8 @@ test('invalid passenger counts, dates, seat selections, and payment methods fail
 
 test.each(['not-json', JSON.stringify({ version: 2 }), JSON.stringify({ version: 1, accounts: [], session: null, trips: [], quotes: [], tickets: [{}] })])('corrupt data is preserved instead of replaced: %s', async raw => {
   await AsyncStorage.setItem(TICKET_STORAGE_KEY, raw);
-  await expect(getToken()).rejects.toThrow(/preserved/);
+  await require('../LocalAppStorage').loginUser({ email: 'passenger.demo@transitlink.lk', password: 'password123' });
+  await expect(loadTickets()).rejects.toThrow(/preserved/);
   expect(await AsyncStorage.getItem(TICKET_STORAGE_KEY)).toBe(raw);
 });
 
@@ -174,7 +176,7 @@ test('read failures are surfaced without seeding over stored records', async () 
   await passenger();
   const before = await AsyncStorage.getItem(TICKET_STORAGE_KEY);
   jest.mocked(AsyncStorage.getItem).mockRejectedValueOnce(new Error('read unavailable'));
-  await expect(loadTickets()).rejects.toThrow(/read tickets/);
+  await expect(loadTickets()).rejects.toThrow(/read/);
   expect(await AsyncStorage.getItem(TICKET_STORAGE_KEY)).toBe(before);
 });
 
@@ -192,4 +194,86 @@ test('logout and account switching invalidate queued purchases', async () => {
   await expect(queued).rejects.toMatchObject({ response: { status: 401 } });
   await switchAccount;
   expect((await getUserProfile()).data.role).toBe('admin');
+});
+
+
+test('ticket registration signs in the main app and profile edits are reflected in tickets', async () => {
+  const user = await registerTicketAccount('Shared User', 'shared@example.test', '', 'SafePass123');
+  expect((await localApi.getAuthSession())?.user._id).toBe(user._id);
+  const ticket = await purchaseQuote((await trainQuote()).id);
+  await localApi.updateUserProfile({ fullName: 'Updated Shared User', email: 'renamed@example.test' });
+  expect((await getUserProfile()).data).toMatchObject({ _id: user._id, fullName: 'Updated Shared User', email: 'renamed@example.test' });
+  expect((await loadTicket(ticket.id)).id).toBe(ticket.id);
+  expect((await purchaseQuote((await trainQuote()).id)).passengerName).toBe('Updated Shared User');
+});
+
+test('main account deletion removes its ticket records without affecting other owners', async () => {
+  await passenger();
+  const otherTicket = await purchaseQuote((await trainQuote()).id);
+  await registerTicketAccount('Delete User', 'delete@example.test', '', 'SafePass123');
+  const own = await purchaseQuote((await trainQuote()).id);
+  await localApi.deleteUserProfile();
+  expect(await getToken()).toBeNull();
+  const db = JSON.parse((await AsyncStorage.getItem(TICKET_STORAGE_KEY))!);
+  expect(db.tickets.some((t: any) => t.id === own.id)).toBe(false);
+  expect(db.tickets.some((t: any) => t.id === otherTicket.id)).toBe(true);
+  await passenger();
+  expect((await loadTickets()).map(t => t.id)).toEqual([otherTicket.id]);
+});
+
+async function installLegacyAccount(email: string, password: string, ticketId: string) {
+  await passenger();
+  const ticket = await purchaseQuote((await trainQuote()).id);
+  const db = JSON.parse((await AsyncStorage.getItem(TICKET_STORAGE_KEY))!);
+  const passwordHash = await require('bcryptjs').hash(password, 10);
+  db.accounts.push({ _id: 'legacy-owner', fullName: 'Legacy User', email, phone: '', role: 'passenger', passwordHash });
+  db.tickets[0].userId = 'legacy-owner'; db.tickets[0].id = ticketId;
+  db.quotes[0].userId = 'legacy-owner';
+  db.session = { userId: 'legacy-owner', token: 'local-ticket:obsolete' };
+  await AsyncStorage.setItem(TICKET_STORAGE_KEY, JSON.stringify(db));
+  await clearTicketAuth();
+  return ticket;
+}
+
+test('ticket-only accounts migrate with password proof and keep references and QR tokens', async () => {
+  const old = await installLegacyAccount('legacy@example.test', 'LegacyPass123', 'legacy-ticket');
+  const { data: user } = await localApi.loginUser({ email: 'legacy@example.test', password: 'LegacyPass123' });
+  expect((await localApi.getAuthSession())?.user._id).toBe(user._id);
+  const ticket = await loadTicket('legacy-ticket');
+  expect(ticket.reference).toBe(old.reference);
+  expect(ticket.qrPayload).toBe(old.qrPayload);
+  const db = JSON.parse((await AsyncStorage.getItem(TICKET_STORAGE_KEY))!);
+  expect(db.accounts).toEqual([]);
+  expect(db.tickets[0].userId).toBe(user._id);
+});
+
+test('a matching email with a different password never claims legacy ticket ownership', async () => {
+  await installLegacyAccount('passenger.demo@transitlink.lk', 'DifferentPass123', 'legacy-ticket');
+  await passenger();
+  expect(await loadTickets()).toEqual([]);
+  await expect(loadTicket('legacy-ticket')).rejects.toMatchObject({ response: { status: 404 } });
+  const db = JSON.parse((await AsyncStorage.getItem(TICKET_STORAGE_KEY))!);
+  expect(db.accounts).toHaveLength(1);
+  expect(db.tickets[0].userId).toBe('legacy-owner');
+});
+
+test('officer app accounts stay denied for ticket verification', async () => {
+  await localApi.loginUser({ email: 'officer@transitlink.lk', password: 'OfficerDemo@2026' });
+  expect((await getUserProfile()).data.role).toBe('officer');
+  await expect(verifyQR(`TL1:${'a'.repeat(64)}`)).rejects.toMatchObject({ response: { status: 403 } });
+});
+
+
+test('failed main account deletion restores the same ticket records', async () => {
+  await passenger();
+  const ticket = await purchaseQuote((await trainQuote()).id);
+  const original = jest.mocked(AsyncStorage.setItem).getMockImplementation()!;
+  jest.mocked(AsyncStorage.setItem).mockImplementation(async (key, value) => {
+    if (key === '@transitlink_app_v1') throw new Error('Main account write failed');
+    return original(key, value);
+  });
+  try { await expect(localApi.deleteUserProfile()).rejects.toThrow(/save data/); }
+  finally { jest.mocked(AsyncStorage.setItem).mockImplementation(original); }
+  expect((await loadTicket(ticket.id)).qrPayload).toBe(ticket.qrPayload);
+  expect(await getToken()).not.toBeNull();
 });

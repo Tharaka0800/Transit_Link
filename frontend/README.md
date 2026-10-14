@@ -25,7 +25,7 @@ The entry point is `expo-router/entry`; pages live in `src/app`. Tabs are Home, 
 | Bus map | Internet for Leaflet and OpenStreetMap |
 | Ticket accounts, tickets, seats, QR verification | Device storage; verification on the same installation |
 
-Ticket accounts use a separate local session. Main app registration does not register a ticket account. Main app logout clears both sessions. Officer roles do not authorize ticket QR verification; use the ticket admin account `admin@transitlink.lk` / `admin123`.
+Profiles and tickets use the same local account and session. Registration, profile updates, account switching, and logout apply throughout the app. Account deletion removes that owner's ticket records. Officer roles do not authorize ticket QR verification; use the admin app account `admin@transitlink.lk` / `admin123`.
 
 No backend or API URL is required for the app. Ticket records and seats are local to each installation and never synchronize across devices. Existing MongoDB accounts/tickets are not automatically imported. The retained [legacy backend](../backend/README.md) remains available separately.
 
@@ -53,12 +53,12 @@ The existing Favourite Routes list remains available. Choose **+ > Add Sample** 
 
 ## Digital tickets and payments
 
-1. Open **Tickets > Sign in** and register or use a local passenger ticket account.
+1. Open **Tickets > Sign in** and register or use the same main app passenger account. If already signed in, no additional login is required.
 2. Choose **New Ticket**, a bus/train journey, and ticket type.
 3. For buses, choose **Choose bus & seats**, a departure, and up to 10 seats. For trains, choose passenger count and travel time.
 4. Review the quote, select Transit Smart Balance, Card, or Mobile Wallet, and confirm the demo purchase.
 5. View each passenger's ticket, reference, seat when applicable, and QR in My Tickets. Used/expired tickets appear in History.
-6. Choose **Verify ticket QR** from Tickets and sign in as the local ticket admin on the same installation. Scan on native or enter the complete manual token. Preview does not consume a ticket; explicitly validate to mark it used.
+6. Choose **Verify ticket QR** from Tickets and sign in as the admin app account on the same installation. Scan on native or enter the complete manual token. Preview does not consume a ticket; explicitly validate to mark it used.
 
 Seats use a 2+2 layout: white available, blue selected, grey occupied, green held by another booking. Availability refreshes every 15 seconds while the picker is open. Reviewing holds seats for up to five minutes; editing releases the hold. Each passenger receives an independent ticket and QR. Confirmation retries reuse the quote to avoid duplicate issuance.
 
@@ -66,7 +66,7 @@ Payments collect no credentials or funds. Fares, schedules, and vehicles are dem
 
 ## Local persistence
 
-Profiles, notifications, saved routes, and support reports persist on the device. Notifications and saved routes belong to the signed-in account. `src/services/LocalAppStorage.ts` uses `@transitlink_app_v1`; ticket accounts, session, quotes, seat bookings, and history use `@transitlink_tickets_v1`. Obsolete online credentials are never accepted as local ticket sessions. Passwords use salted bcrypt hashes and secure randomness from `expo-crypto`.
+Profiles, notifications, saved routes, and support reports persist on the device. Notifications and saved routes belong to the signed-in account. `src/services/LocalAppStorage.ts` uses `@transitlink_app_v1`; ticket quotes, seat bookings, and history use `@transitlink_tickets_v1`. Obsolete online credentials are never accepted as local ticket sessions. Passwords use salted bcrypt hashes and secure randomness from `expo-crypto`.
 
 Account deletion removes related local records and session while preserving Officer incidents. Storage operations are serialized; malformed data and storage errors do not overwrite existing records. Empty collections remain empty. Obsolete backend sessions are discarded; older backend users must register locally for local features.
 
@@ -81,7 +81,7 @@ Sign in locally as `officer@transitlink.lk`:
 3. Choose **Edit**, change fields/status, then **Save Changes**.
 4. Choose **Resolve** to delete an incident.
 
-`src/utils/OfficerStorage.ts` uses `@transit_incidents`. Samples initialize only when the key is missing. Deleting all alerts preserves an empty list after restart. Edits retain IDs and timestamps. Screens include validation, retries, and duplicate-action protection. Metrics are static; Delay Hotspots and Rerouting are informational.
+`src/utils/OfficerStorage.ts` uses `@transit_incidents`. Samples initialize only when the key is missing. Deleting all alerts preserves an empty list after restart. Edits retain IDs and timestamps. Screens include validation, retries, and duplicate-action protection. Dashboard demo bus/route counts come from the bundled catalogue. Urgent Alerts counts saved urgent incidents; Delay Hotspots counts distinct routes with unresolved alerts. On Time and Rerouting show Unavailable because no measurement data exists.
 
 ## Validation
 
@@ -103,7 +103,7 @@ Manual checks:
 1. Search routes, try empty results, load the map, and navigate from bus status to ETA.
 2. Sign in locally and verify profile, notification, and saved-route persistence after restart.
 3. Create/edit/resolve an Officer alert and verify persistence. Other roles should have no Officer tab.
-4. Book seats offline, restart and check tickets persist, then verify the manual QR token with the local ticket admin on the same installation.
+4. Book seats offline, restart and check tickets persist, then verify the manual QR token with the admin app account on the same installation.
 5. Check narrow screens, keyboard behavior, and Back navigation on target devices.
 
 ## Screen files
@@ -120,3 +120,5 @@ Manual checks:
 | Ticket list / Purchase / Details | `src/screens/MyTicketsScreen.tsx`, `src/screens/TicketPurchaseScreen.tsx`, `src/screens/TicketDetailsScreen.tsx` |
 | Local ticket login / QR verification | `src/screens/TicketLoginScreen.tsx`, `src/screens/TicketVerificationScreen.tsx` |
 | Officer / Alert form | `src/app/(tabs)/officer-dashboard/index.tsx`, `src/app/officer-dashboard/add-alert.tsx` |
+
+Shared-account and Officer-metric changes on October 14, 2026 passed TypeScript, all 204 tests across 16 suites, and Android JavaScript export. Device/APK testing remains required.

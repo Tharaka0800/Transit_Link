@@ -1,15 +1,17 @@
 import * as local from './LocalAppStorage';
 import { clearTicketAuth } from './ticketApi';
+import { loginUnifiedAccount, registerUnifiedAccount, deleteAccountTickets } from './LocalTicketStorage';
 
 // Keep the response shapes used by teammates' screens while performing every
 // operation locally. No server URL, HTTP client, or internet connection is used.
-export const registerUser = async (data) => ({ data: await local.registerUser(data) });
-export const loginUser = async (data) => ({ data: await local.loginUser(data) });
+export const registerUser = async (data) => ({ data: await registerUnifiedAccount(data) });
+export const loginUser = async (data) => ({ data: await loginUnifiedAccount(data) });
 export const getUserProfile = async () => ({ data: await local.getUserProfile() });
 export const updateUserProfile = async (data) => ({ data: await local.updateUserProfile(data) });
 export const deleteUserProfile = async () => {
-  await clearTicketAuth();
-  return { data: await local.deleteUserProfile() };
+  const user = await local.getUserProfile();
+  if (user.role === 'officer') return { data: await local.deleteUserProfile() };
+  return { data: await deleteAccountTickets(user._id, () => local.deleteUserProfile()) };
 };
 
 export const getNotifications = async (params) => ({ data: await local.getNotifications(params) });
@@ -23,9 +25,8 @@ export const toggleSavedRoute = async (id) => ({ data: await local.toggleSavedRo
 
 export const saveAuth = local.saveAuth;
 export const clearAuth = async () => {
-  // Both calls invalidate pending work synchronously, before either storage
-  // operation is awaited. Ticket I/O must not delay the main session guard.
-  await Promise.all([local.clearAuth(), clearTicketAuth()]);
+  // Shared logout invalidates main and ticket work before awaiting storage.
+  await clearTicketAuth();
 };
 export const getStoredUser = local.getStoredUser;
 export const getToken = local.getToken;

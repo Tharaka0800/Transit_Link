@@ -8,15 +8,7 @@ import Button from '../../../components/Button';
 import { colors } from '../../../theme';
 import { deleteIncident, getIncidents, IncidentAlert } from '../../../utils/OfficerStorage';
 import OfficerGuard from '../../../auth/OfficerGuard';
-
-const metrics = [
-  { label: 'Active Buses', value: '150', icon: 'bus-outline' },
-  { label: 'On Time', value: '85%', icon: 'time-outline' },
-  { label: 'Total Routes', value: '30', icon: 'map-outline' },
-  { label: 'Urgent Alerts', value: '12', icon: 'alert-circle-outline' },
-  { label: 'Delay Hotspots', icon: 'location-outline' },
-  { label: 'Rerouting', icon: 'git-branch-outline' },
-] satisfies Array<{ label: string; value?: string; icon: React.ComponentProps<typeof Ionicons>['name'] }>;
+import { buses, routes } from '../../../data/buses';
 
 const statusColors: Record<IncidentAlert['status'], { color: string; backgroundColor: string }> = {
   URGENT: { color: colors.red, backgroundColor: colors.redSoft },
@@ -33,6 +25,18 @@ function OfficerDashboardContent() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [loaded, setLoaded] = useState(false);
+  const alertValue = (count: number) => loaded && !loadError ? String(count) : 'Unavailable';
+  const open = incidents.filter(i => i.status !== 'RESOLVED');
+  const metrics = [
+    { label: 'Demo Buses', value: String(new Set(buses.map(b => b.id)).size), icon: 'bus-outline' },
+    { label: 'On Time', value: 'Unavailable', icon: 'time-outline' },
+    { label: 'Total Routes', value: String(new Set(routes.map(r => r.id)).size), icon: 'map-outline' },
+    { label: 'Urgent Alerts', value: alertValue(incidents.filter(i => i.status === 'URGENT').length), icon: 'alert-circle-outline' },
+    { label: 'Delay Hotspots', value: alertValue(new Set(open.map(i => i.route.trim().toLowerCase())).size), icon: 'location-outline' },
+    { label: 'Rerouting', value: 'Unavailable', icon: 'git-branch-outline' },
+  ] satisfies Array<{ label: string; value: string; icon: React.ComponentProps<typeof Ionicons>['name'] }>;
+
   const [pendingIds, setPendingIds] = useState<Set<string>>(new Set());
   const deletingIds = useRef(new Set<string>());
   const mounted = useRef(false);
@@ -45,7 +49,7 @@ function OfficerDashboardContent() {
     setLoadError(null);
     try {
       const items = await getIncidents();
-      if (mounted.current && requestId.current === currentRequest) setIncidents(items);
+      if (mounted.current && requestId.current === currentRequest) { setIncidents(items); setLoaded(true); }
     } catch (error) {
       if (mounted.current && requestId.current === currentRequest) {
         setLoadError(error instanceof Error ? error.message : 'Unable to load alerts. Please try again.');
@@ -140,6 +144,7 @@ function OfficerDashboardContent() {
         contentContainerStyle={styles.list}
         ListHeaderComponent={(
           <View>
+            <Text style={styles.metricNote}>Local demo: buses and routes use the bundled catalogue. Delay hotspots count routes with unresolved alerts. On-time and rerouting data are unavailable.</Text>
             {[metrics.slice(0, 3), metrics.slice(3)].map((row, index) => (
               <View key={index} style={styles.statsRow}>
                 {row.map((metric) => {
@@ -196,6 +201,7 @@ const styles = StyleSheet.create({
     flex: 1, minWidth: 0, backgroundColor: colors.white, borderRadius: 16,
     borderWidth: 1, borderColor: colors.border, padding: 16, alignItems: 'center', justifyContent: 'center',
   },
+  metricNote: { fontSize: 12, color: colors.gray500, marginBottom: 12 },
   metricValue: { fontSize: 22, fontWeight: '700', marginTop: 8 },
   metricLabel: { fontSize: 13, color: colors.gray500, textAlign: 'center', marginTop: 6 },
   newButton: { marginTop: 4, marginBottom: 24 },
