@@ -1,95 +1,152 @@
 # TransitLink
 
-TransitLink is a university transit prototype built with Expo SDK 51, React Native, Expo Router, and AsyncStorage. The legacy Express/MongoDB backend is retained separately. It combines bus and route demonstrations, digital ticket booking, local passenger accounts, and Transport Officer incident management.
+TransitLink is a university transit prototype built with Expo SDK 51, React Native, Expo Router, and AsyncStorage. It includes passenger journeys and tickets, an Admin workspace, and Transport Officer incident management and ticket verification.
 
-## Features
+All account and operational records are stored on the device. The retained Express/MongoDB backend is optional and is not used by the current app. Maps still need internet for Leaflet and OpenStreetMap resources.
 
-| Area | Features | Requirements |
-| --- | --- | --- |
-| Routes and buses | Route search and filters, bus map, status, ETA, saved routes, fare calculator | Bundled demo data; internet for map tiles |
-| Digital tickets | Bus seats, train/group booking, scheduling, history, QR display and verification | Local ticket storage; verification on the same installation |
-| Passenger accounts | Registration, login, profiles, notifications, settings, support reports | Local device storage |
-| Admin workspace | Dashboard, ticket search, users, support, routes/fares, activity, backup/restore | Local Admin account |
-| Officer dashboard | Create, read, edit, and resolve incidents | Local Officer account |
+## Features and roles
 
-Bus positions, ETAs, fares, and schedules are illustrative. Payments are simulated and collect no funds. Profiles and tickets use the same main app account.
+| Role/area | Available features |
+| --- | --- |
+| Passenger | Registration/login, profiles, notifications, saved routes, support reports, route search, demo bus maps/status/ETA, fare calculation, ticket buying and history |
+| Admin | Local dashboard, ticket search/details, user roles and account status, support inbox/replies, shared journey/fare management, activity history, backup/restore, ticket verification, profile/settings and logout |
+| Transport Officer | Officer dashboard, create/edit/resolve incident alerts, QR and ticket-code verification; existing passenger navigation remains available |
+
+Admin sees only **Admin** and **Profile** tabs. Passenger pages redirect Admin to its workspace, and personal ticket purchases, saved routes, notifications, and support submission are blocked for Admin. The last active admin cannot be disabled, demoted, or deleted; the built-in Officer account is protected.
+
+Profiles and tickets use one shared local account and session. Registration, account switching, profile changes, and logout apply throughout the app. Role permissions come from the stored account, not the registration form.
 
 ## Run the frontend
 
 From the repository root:
 
-```bash
+```powershell
 cd frontend
 npm install
 npx expo start
 ```
 
-Press `w` for web or `a` for an Android emulator. Native testing requires an Expo SDK 51-compatible Expo Go client or development build. Custom native clients must include the camera and WebView dependencies. Metro must be reachable to load the development app.
+Press `w` for web or `a` for an Android emulator. Native development requires an Expo SDK 51-compatible Expo Go client or development build. Custom native clients must include the existing camera and WebView dependencies. Metro must be reachable when using a development client.
 
-Local accounts, Officer alerts, route search, and bus details do not require the backend. The map needs internet for Leaflet and OpenStreetMap tiles.
-
-## Local tickets
-
-Sign in once using the main app login, then open **Tickets**. You can also sign in or register through Tickets; this uses the same app account. Tickets, seat holds, purchases, and history persist in AsyncStorage without a backend. QR and ticket-code verification accepts Admin or Transport Officer accounts; the admin demo account is: `admin@transitlink.lk` / `admin123`.
-
-Tickets and seat availability are scoped to one installation. Only tickets created on that installation can be verified; devices do not synchronize bookings or consumption. Account registration, profile changes, and logout are shared between profiles and tickets. MongoDB accounts and tickets are not automatically imported, and the retained backend/database are not modified. `EXPO_PUBLIC_API_URL` is no longer used by the app's ticket flows. See [ticketing details](TICKETING.md).
+No backend, MongoDB connection, or `EXPO_PUBLIC_API_URL` is required for current app features. Only external map resources need internet.
 
 ## Local demo accounts
 
-| Role | Email | Password |
-| --- | --- | --- |
-| Passenger | `tharukee01@gmail.com` | `password123` |
-| Passenger | `passenger.demo@transitlink.lk` | `password123` |
-| Admin | `admin@transitlink.lk` | `admin123` |
-| Transport officer | `officer@transitlink.lk` | `OfficerDemo@2026` |
+| Role | Email | Password | Landing screen |
+| --- | --- | --- | --- |
+| Passenger | `tharukee01@gmail.com` | `password123` | Home |
+| Passenger | `passenger.demo@transitlink.lk` | `password123` | Home |
+| Admin | `admin@transitlink.lk` | `admin123` | Admin workspace |
+| Transport Officer | `officer@transitlink.lk` | `OfficerDemo@2026` | SmartBus Dashboard |
 
-Accounts initialize when local storage is first created. Officer login opens SmartBus Dashboard; Admin login opens the Admin workspace; passengers open Home. The same passenger and admin accounts are used for tickets. Legacy local ticket-only passengers can sign in with their old credentials to upgrade and link their ticket history. Matching email addresses alone do not transfer ticket ownership.
+Demo accounts initialize when main account storage is first created. Registration creates passengers. Account data persists between app restarts.
 
-## Demonstration
+Legacy local ticket-only passenger accounts can sign in with their old credentials to upgrade and link their ticket history. Matching email addresses alone do not transfer ownership; conflicting passwords leave legacy records preserved and unlinked. Existing MongoDB accounts and tickets are not automatically imported.
 
-1. Open **Home > Find Routes > Search Routes**. Search Colombo Fort to Kandy, open Bus 154's status, then view its arrival time. **Open Bus Map** lists all demo buses.
-2. Sign in locally, edit a profile, manage notifications, and add a sample saved route. Restart to check persistence.
-3. Sign in through Tickets, choose a journey and seats/passenger count, and confirm a demo purchase. View the tickets and QR codes.
-4. Choose **Verify ticket QR** from Tickets and sign in with the admin app account on the same installation. Preview a QR/manual token, then explicitly mark it used.
-5. Sign in locally as Officer. Create an alert, edit it, and choose **Resolve** to remove it.
+## Passenger tickets
+
+1. Sign in with a passenger account and open **Tickets**. No second ticket login is needed.
+2. Choose a Bus/Train journey and ticket type. For buses, select a departure and 1?10 seats. For trains, choose passenger count and travel time.
+3. Review the quote, choose a simulated payment method, and explicitly confirm.
+4. View each passenger's ticket, full `TL-` ticket code, seat when applicable, and QR in My Tickets. Used/expired tickets appear in History.
+
+Seat holds last up to five minutes or until departure. Editing releases the hold. Retrying the same purchase quote returns the existing booking. Each passenger gets a distinct ticket and QR. Payments collect no funds.
+
+Route Search, the fare calculator, and ticket quotes read the same local managed journey catalogue. Admin fare edits affect new quotes; issued tickets retain their original fare and journey details. Withdrawing a journey blocks new quotes and unpurchased confirmations. Demo bus positions/ETAs and informational general fares remain illustrative.
+
+## Officer and Admin ticket verification
+
+Officers open **SmartBus Dashboard > Verify Ticket**. Admins open **Admin > Overview > Verify ticket QR**. Both roles use their existing main login; passenger accounts cannot verify tickets.
+
+1. Scan the QR using the native camera, or enter the complete **`TL-` ticket code** shown in ticket details. Manual **`TL1:` QR tokens** are also accepted. Web uses manual entry.
+2. Choose **Check ticket** for manual entry, then review the preview. Scanning or checking alone does not consume the ticket.
+3. Choose **Validate & mark used**. Only an active, unused ticket within its validity period is accepted.
+
+QR and code verification use the same record, so a ticket can be consumed only once across either method. Validation records the verifier's identity and time in local activity history. Invalid, unknown, future, expired, and used tickets receive an error or an ineligible preview.
+
+**Verification only recognizes tickets stored on the same installation.** A ticket purchased on another phone cannot be verified using AsyncStorage alone. For a local demo, copy a passenger ticket's code, switch to Officer/Admin on that installation, and verify it.
+
+## Admin workspace
+
+Sign in as Admin to access **Overview, Tickets, Users, Support, Routes & fares, Activity, and Backup**.
+
+- Search local tickets by reference, passenger, email, journey, or purchase date; inspect booking details without exposing QR credentials.
+- Enable/disable other accounts or promote/demote passenger/admin roles, with confirmation and last-admin protection.
+- Review support reports, save their status, and reply. Passengers see replies in notifications and Help & Support report history.
+- Add/edit journeys and configured fares, or disable a journey.
+- Review administrative changes and ticket validations with actor names and timestamps.
+- Export local records, validate a backup, preview its counts, and explicitly confirm restoration.
+
+Backups contain private records, password hashes, and ticket credentials; keep them private. Restore replaces local records, including Officer incidents, and signs users out. Login sessions are excluded from backups. See [Admin guide](ADMIN.md) for sharing, restore validation, and recovery behavior.
+
+## Officer incidents and metrics
+
+Officers can create and edit alerts with Bus ID, Route, Delay Time, and status. **Resolve removes an alert**; incident history is not implemented.
+
+Dashboard bus/route counts use bundled demo data. Urgent Alerts counts saved urgent incidents; Delay Hotspots counts distinct routes with unresolved alerts. On Time and Rerouting show **Unavailable** because measurement data is not implemented. Incident alerts do not automatically update passenger bus positions, ETAs, or notifications.
+
+## Build an Android APK
+
+From `frontend`:
+
+```powershell
+npx eas-cli@latest login
+npx eas-cli@latest build:configure
+```
+
+After configuration, add this profile inside the `build` section of `frontend/eas.json`, keeping other profiles:
+
+```json
+"preview": {
+  "distribution": "internal",
+  "android": {
+    "buildType": "apk"
+  }
+}
+```
+
+Build with:
+
+```powershell
+npx eas-cli@latest build --platform android --profile preview
+```
+
+Use the download link when the build completes. A standalone APK includes the app bundle and does not need Metro to launch. Rebuild to include code changes. Test camera permissions, native backup sharing, navigation, and persistence on the installed APK.
 
 ## Validation
 
-```bash
-cd frontend
+Run from `frontend`:
+
+```powershell
 npm run typecheck
-npm test
-npx expo install --check
-npx expo export --platform all --output-dir dist
-cd ../backend
-npm run test:tickets
+npm test -- --silent
+npx expo export --platform android --output-dir dist-local-tickets
 ```
 
-On October 13, 2026, the AsyncStorage ticket migration passed TypeScript, all 196 frontend tests across 16 suites, and Android JavaScript export. APK/device testing is still required. Legacy backend tests are optional and were not rerun for this frontend migration.
+The latest Officer QR/code change on October 14, 2026 passed **255 tests across 19 suites**, TypeScript, and Android JavaScript export. The preceding Admin implementation also passed Android/iOS/web exports. Bundling and mocked camera tests do not replace APK/device testing.
+
+The retained backend can be tested separately with `npm run test:tickets` from `backend`; it is not required to run the current app.
 
 ## Project structure
 
 | Path | Purpose |
 | --- | --- |
-| `frontend/src/app` | Expo Router pages and navigation |
-| `frontend/src/screens` | Passenger, bus, ticket, and Officer screens |
-| `frontend/src/components` | Shared controls, map, and ticket components |
-| `frontend/src/data` | Initial bus/journey demo data; Admin edits persist locally |
-| `frontend/src/services` | Local account and ticket storage |
-| `frontend/src/utils` | Officer storage and ticket helpers |
+| `frontend/src/app` | Expo Router pages and role-aware navigation |
+| `frontend/src/auth` | Shared authentication and Admin/Officer route guards |
+| `frontend/src/screens` | Passenger, Admin, Officer, bus, and ticket screens |
+| `frontend/src/components` | Shared controls, maps, and ticket/QR components |
+| `frontend/src/data` | Initial demo buses, routes, and journey catalogue |
+| `frontend/src/services` | Local account/ticket/Admin storage, permissions, backup and recovery |
+| `frontend/src/utils` | Officer incident storage and ticket helpers |
 | `backend` | Retained legacy Express/MongoDB API and tests |
 
 ## Documentation and limitations
 
 - [Admin workspace and backup guide](ADMIN.md)
 - [Frontend setup and demonstration guide](frontend/README.md)
-- [Legacy backend setup and booking API](backend/README.md)
-- [Ticketing design, verification, and limitations](TICKETING.md)
+- [Ticketing, verification, and limitations](TICKETING.md)
+- [Legacy backend setup](backend/README.md)
 
-Local records do not synchronize across installations. Clearing app storage removes them. Bus locations and ETAs are fixed demo values. Password recovery, live GPS tracking, real payments, and production role provisioning are outside the implemented scope. Officer bus/route counts use the demo catalogue; urgent-alert and affected-route counts use saved incidents. On-time and rerouting data are unavailable; support reports and Admin replies are saved locally. See [Admin guide](ADMIN.md) for account management, the shared journey catalogue, audit history, and backup/restore.
+Records do not synchronize between phones or browser tabs. Clearing app storage removes local records; use a private backup for recovery. AsyncStorage and activity history are unencrypted, mutable local data rather than a production security boundary. Device time determines ticket validity.
 
-Shared-account and Officer-metric changes on October 14, 2026 passed TypeScript, all 204 tests across 16 suites, and Android JavaScript export. Device/APK testing remains required.
-
-Admin implementation checks on October 14, 2026 passed TypeScript, 229 tests across 18 suites, and Android/iOS/web JavaScript exports. Native sharing, camera, and storage still require a rebuilt APK/device smoke test.
-
-Transport Officers can now preview and validate tickets using native QR scanning or the complete `TL-` ticket code printed in ticket details. Manual `TL1:` QR tokens are also supported. Admin retains verification access; passengers are denied. Both methods consume the same ticket only once and record the verifier. Tickets must exist on the same installation; cross-phone verification is not supported by local storage.
+Live GPS, real payments, email/SMS password recovery, cross-device booking/verification, and production role provisioning are outside this prototype. Maps depend on external internet resources. Custom journeys without a matching bundled bus show bus status as unavailable. Backend catalogue changes do not affect the current app.
