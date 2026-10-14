@@ -30,7 +30,7 @@ Local accounts, Officer alerts, route search, and bus details do not require the
 
 ## Local tickets
 
-Sign in once using the main app login, then open **Tickets**. You can also sign in or register through Tickets; this uses the same app account. Tickets, seat holds, purchases, and history persist in AsyncStorage without a backend. QR verification requires the admin app account: `admin@transitlink.lk` / `admin123`.
+Sign in once using the main app login, then open **Tickets**. You can also sign in or register through Tickets; this uses the same app account. Tickets, seat holds, purchases, and history persist in AsyncStorage without a backend. QR and ticket-code verification accepts Admin or Transport Officer accounts; the admin demo account is: `admin@transitlink.lk` / `admin123`.
 
 Tickets and seat availability are scoped to one installation. Only tickets created on that installation can be verified; devices do not synchronize bookings or consumption. Account registration, profile changes, and logout are shared between profiles and tickets. MongoDB accounts and tickets are not automatically imported, and the retained backend/database are not modified. `EXPO_PUBLIC_API_URL` is no longer used by the app's ticket flows. See [ticketing details](TICKETING.md).
 
@@ -91,3 +91,5 @@ Local records do not synchronize across installations. Clearing app storage remo
 Shared-account and Officer-metric changes on October 14, 2026 passed TypeScript, all 204 tests across 16 suites, and Android JavaScript export. Device/APK testing remains required.
 
 Admin implementation checks on October 14, 2026 passed TypeScript, 229 tests across 18 suites, and Android/iOS/web JavaScript exports. Native sharing, camera, and storage still require a rebuilt APK/device smoke test.
+
+Transport Officers can now preview and validate tickets using native QR scanning or the complete `TL-` ticket code printed in ticket details. Manual `TL1:` QR tokens are also supported. Admin retains verification access; passengers are denied. Both methods consume the same ticket only once and record the verifier. Tickets must exist on the same installation; cross-phone verification is not supported by local storage.

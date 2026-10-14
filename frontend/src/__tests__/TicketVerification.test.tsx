@@ -1,4 +1,6 @@
 import React from 'react';
+import { CameraView } from 'expo-camera';
+let mockPermission = { granted: false, canAskAgain: true };
 import { AxiosHeaders } from 'axios';
 import { Text, TextInput, TouchableOpacity } from 'react-native';
 import { act, create, ReactTestRenderer } from 'react-test-renderer';
@@ -19,7 +21,7 @@ jest.mock('expo-router', () => ({
 jest.mock('expo-camera', () => ({
   CameraView: () => null,
   useCameraPermissions: () => [
-    { granted: false, canAskAgain: true },
+    mockPermission,
     jest.fn(),
   ],
 }));
@@ -95,6 +97,7 @@ async function check() {
   await press('Check ticket');
 }
 beforeEach(() => {
+  mockPermission = { granted: false, canAskAgain: true };
   jest.mocked(getToken).mockResolvedValue('session');
   jest.mocked(getUserProfile).mockResolvedValue(profileResponse('admin'));
   jest.mocked(verifyQR).mockResolvedValue({ ticket, eligible: true });
@@ -172,4 +175,27 @@ test('duplicate confirmation is suppressed and consumption conflict updates the 
   });
   expect(text()).toContain('Already used');
   expect(button('Validate & mark used')).toBeUndefined();
+});
+
+
+test('Transport Officer can preview and explicitly consume a manual ticket code', async () => {
+  jest.mocked(getUserProfile).mockResolvedValue(profileResponse('officer'));
+  await render();
+  act(() => screen.root.findByType(TextInput).props.onChangeText(`TL-${'A'.repeat(32)}`));
+  await press('Check ticket');
+  expect(verifyQR).toHaveBeenCalledWith(`TL-${'A'.repeat(32)}`);
+  expect(redeemQR).not.toHaveBeenCalled();
+  await press('Validate & mark used');
+  expect(redeemQR).toHaveBeenCalledWith(`TL-${'A'.repeat(32)}`);
+});
+
+test('Transport Officer camera QR scan previews before explicit redemption', async () => {
+  mockPermission = { granted: true, canAskAgain: true };
+  jest.mocked(getUserProfile).mockResolvedValue(profileResponse('officer'));
+  await render(); await press('Open camera');
+  const payload = `TL1:${'b'.repeat(64)}`;
+  await act(async () => screen.root.findByType(CameraView).props.onBarcodeScanned({ data: payload }));
+  expect(verifyQR).toHaveBeenCalledWith(payload);
+  expect(redeemQR).not.toHaveBeenCalled();
+  await press('Validate & mark used'); expect(redeemQR).toHaveBeenCalledWith(payload);
 });

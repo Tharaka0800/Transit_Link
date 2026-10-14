@@ -58,7 +58,7 @@ export default function TicketVerificationScreen() {
       }
       const { data } = await getUserProfile();
       if (generation.current === current)
-        setAccess(data.role === 'admin' ? 'allowed' : 'denied');
+        setAccess(['admin', 'officer'].includes(data.role) ? 'allowed' : 'denied');
     } catch (failure) {
       if (generation.current === current) {
         setAccess(isSessionError(failure) ? 'signedOut' : 'error');
@@ -204,7 +204,7 @@ export default function TicketVerificationScreen() {
             </Text>
             <Text style={styles.subtitle}>
               {error ||
-                'Verification requires an admin app account. Only tickets created on this installation can be verified. Switching accounts changes your login throughout the app.'}
+                'Verification requires an Admin or Transport Officer account. Only tickets created on this installation can be verified. Switching accounts changes your login throughout the app.'}
             </Text>
             {access === 'signedOut' ? (
               <Button onPress={() => router.push({ pathname: '/ticketing/login', params: { next: 'verify' } })}>Sign in</Button>
@@ -244,7 +244,7 @@ export default function TicketVerificationScreen() {
                       onMountError={() => {
                         setCameraOn(false);
                         setError(
-                          'The camera could not start. Enter the ticket token below.'
+                          'The camera could not start. Enter the ticket code or QR token below.'
                         );
                       }}
                     />
@@ -262,7 +262,7 @@ export default function TicketVerificationScreen() {
                     </Text>
                     <Text style={styles.subtitle}>
                       {Platform.OS === 'web'
-                        ? 'Use the mobile app to scan, or enter the ticket token below.'
+                        ? 'Use the mobile app to scan, or enter the ticket code or QR token below.'
                         : permission &&
                             !permission.granted &&
                             !permission.canAskAgain
@@ -395,8 +395,8 @@ export default function TicketVerificationScreen() {
               <View style={styles.panel}>
                 <Text style={styles.sectionTitle}>Manual verification</Text>
                 <Text style={styles.subtitle}>
-                  Enter the complete TL1: token from a ticket QR when camera
-                  scanning is unavailable.
+                  Enter the complete TL- ticket code shown on the ticket, or its
+                  TL1: QR token. Both methods validate the same ticket.
                 </Text>
                 <TextInput
                   style={styles.input}
@@ -407,7 +407,7 @@ export default function TicketVerificationScreen() {
                   autoCorrect={false}
                   multiline
                   editable={!busy}
-                  accessibilityLabel="Ticket QR token"
+                  accessibilityLabel="Ticket code or QR token"
                 />
                 <Button
                   variant="secondary"

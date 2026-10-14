@@ -61,3 +61,5 @@ Legacy v1 ticket documents are retained. Login verifies the old password before 
 Shared-account and Officer-metric changes on October 14, 2026 passed TypeScript, all 204 tests across 16 suites, and Android JavaScript export. Device/APK testing remains required.
 
 Admin ticket search reads local bookings without exposing QR credentials. Redemption records the verifier ID, name, and time with a durable local activity entry. Backup/restore includes this history; see [Admin guide](ADMIN.md).
+
+Transport Officers can now preview and validate tickets using native QR scanning or the complete `TL-` ticket code printed in ticket details. Manual `TL1:` QR tokens are also supported. Admin retains verification access; passengers are denied. Both methods consume the same ticket only once and record the verifier. Tickets must exist on the same installation; cross-phone verification is not supported by local storage.

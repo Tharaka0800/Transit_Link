@@ -279,10 +279,12 @@ export function localTicketRequest(method: string, path: string, input: unknown 
     }
     if (method === 'GET' && path === '/tickets') return { tickets: db.tickets.filter(t => t.userId === user._id).sort((a, b) => b.purchasedAt.localeCompare(a.purchasedAt)).map(t => view(t)) };
     if (method === 'POST' && ['/tickets/verify', '/tickets/redeem'].includes(path)) {
-      if (user.role !== 'admin') fail('Ticket verification requires the admin app account.', 403);
+      if (!['admin', 'officer'].includes(user.role)) fail('Ticket verification requires an Admin or Transport Officer account.', 403);
       const payload = typeof body.payload === 'string' ? body.payload.trim() : '';
-      if (!/^TL1:[a-f0-9]{64}$/.test(payload)) fail('This is not a TransitLink ticket QR.');
-      const ticket = db.tickets.find(t => t.qrPayload === payload);
+      const isQR = /^TL1:[a-f0-9]{64}$/.test(payload);
+      const code = payload.toUpperCase();
+      if (!isQR && !/^TL-(?:[A-F0-9]{20}|[A-F0-9]{32})$/.test(code)) fail('This is not a TransitLink ticket QR or code. Enter the complete ticket code.');
+      const ticket = db.tickets.find(t => isQR ? t.qrPayload === payload : t.reference.toUpperCase() === code);
       if (!ticket) fail('Ticket not found on this device. Only tickets created on this installation can be verified.', 404);
       if (path === '/tickets/verify') return { ticket: view(ticket), eligible: status(ticket) === 'Active' };
       if (status(ticket) !== 'Active') fail(`Ticket is ${status(ticket).toLowerCase()} and cannot be used.`, 409);

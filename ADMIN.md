@@ -55,3 +55,5 @@ Automated checks cover unauthorized Admin links/services, last-admin/Officer pro
 On a rebuilt APK, verify Admin login/tab visibility, edit a fare and check it as a passenger, submit/reply to a support report on the same device, share a private backup, then validate/restore it using a disposable test installation. Native sharing, camera scanning, and platform storage behavior still require device testing.
 
 On October 14, 2026, TypeScript, all 229 tests across 18 suites, and Android/iOS/web JavaScript exports passed. No APK was built or installed during this implementation.
+
+Transport Officers can now preview and validate tickets using native QR scanning or the complete `TL-` ticket code printed in ticket details. Manual `TL1:` QR tokens are also supported. Admin retains verification access; passengers are denied. Both methods consume the same ticket only once and record the verifier. Tickets must exist on the same installation; cross-phone verification is not supported by local storage.

@@ -266,6 +266,7 @@ export default function TicketDetailsScreen() {
                       : 'Valid for one use.'}
                   </Text>
                 )}
+                <Text style={styles.hint}>Ticket code (for manual verification)</Text>
                 <Text selectable style={styles.reference}>
                   {ticket.reference}
                 </Text>

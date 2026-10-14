@@ -257,11 +257,29 @@ test('a matching email with a different password never claims legacy ticket owne
   expect(db.tickets[0].userId).toBe('legacy-owner');
 });
 
-test('officer app accounts stay denied for ticket verification', async () => {
+test('Officer verifies by QR and full ticket code; either method consumes the same ticket once', async () => {
+  await passenger();
+  const first = await purchaseQuote((await trainQuote()).id);
+  const second = await purchaseQuote((await trainQuote()).id);
   await localApi.loginUser({ email: 'officer@transitlink.lk', password: 'OfficerDemo@2026' });
-  expect((await getUserProfile()).data.role).toBe('officer');
-  await expect(verifyQR(`TL1:${'a'.repeat(64)}`)).rejects.toMatchObject({ response: { status: 403 } });
+  expect((await verifyQR(first.qrPayload!)).eligible).toBe(true);
+  expect((await verifyQR(`  ${first.reference.toLowerCase()}  `)).ticket.id).toBe(first.id);
+  await redeemQR(first.reference);
+  await expect(redeemQR(first.qrPayload!)).rejects.toMatchObject({ response: { status: 409 } });
+  expect((await verifyQR(second.reference)).eligible).toBe(true);
+  await redeemQR(second.qrPayload!);
+  await expect(redeemQR(second.reference)).rejects.toMatchObject({ response: { status: 409 } });
+  await admin();
+  const { loadAdminTicketActivities } = require('../LocalTicketStorage');
+  expect((await loadAdminTicketActivities()).filter((a: any) => a.actorId === 'demo-officer')).toHaveLength(2);
 });
+
+test('passengers cannot preview or redeem via a manual ticket code', async () => {
+  await passenger(); const ticket = await purchaseQuote((await trainQuote()).id);
+  await expect(verifyQR(ticket.reference)).rejects.toMatchObject({ response: { status: 403 } });
+  await expect(redeemQR(ticket.reference)).rejects.toMatchObject({ response: { status: 403 } });
+});
+
 
 
 test('failed main account deletion restores the same ticket records', async () => {

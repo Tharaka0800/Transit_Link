@@ -25,7 +25,7 @@ The entry point is `expo-router/entry`; pages live in `src/app`. Tabs are Home, 
 | Bus map | Internet for Leaflet and OpenStreetMap |
 | Ticket accounts, tickets, seats, QR verification | Device storage; verification on the same installation |
 
-Profiles and tickets use the same local account and session. Registration, profile updates, account switching, and logout apply throughout the app. Account deletion removes that owner's ticket records. Officer roles do not authorize ticket QR verification; use the admin app account `admin@transitlink.lk` / `admin123`.
+Profiles and tickets use the same local account and session. Registration, profile updates, account switching, and logout apply throughout the app. Account deletion removes that owner's ticket records. Officer and Admin roles can verify tickets; the admin demo account is `admin@transitlink.lk` / `admin123`.
 
 No backend or API URL is required for the app. Ticket records and seats are local to each installation and never synchronize across devices. Existing MongoDB accounts/tickets are not automatically imported. The retained [legacy backend](../backend/README.md) remains available separately.
 
@@ -130,3 +130,5 @@ Sign in as `admin@transitlink.lk` / `admin123`. The Admin tab contains Overview,
 See the [Admin guide](../ADMIN.md) for workflows, limitations, and verification.
 
 Admin navigation is restricted to Admin and Profile. Passenger pages redirect Admin to its workspace; ticket purchases and other personal passenger operations reject Admin access. Administrative ticket inspection/verification is retained.
+
+Transport Officers can now preview and validate tickets using native QR scanning or the complete `TL-` ticket code printed in ticket details. Manual `TL1:` QR tokens are also supported. Admin retains verification access; passengers are denied. Both methods consume the same ticket only once and record the verifier. Tickets must exist on the same installation; cross-phone verification is not supported by local storage.
