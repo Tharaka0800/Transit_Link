@@ -128,3 +128,5 @@ Shared-account and Officer-metric changes on October 14, 2026 passed TypeScript,
 Sign in as `admin@transitlink.lk` / `admin123`. The Admin tab contains Overview, Tickets, Users, Support, Routes & fares, Activity, and Backup. Its service methods enforce admin access as well as the screen guard. Disabled accounts cannot log in; the last active admin and the built-in Officer are protected. Backups exclude active login sessions and include private account/ticket records; validated restore requires confirmation and signs users out.
 
 See the [Admin guide](../ADMIN.md) for workflows, limitations, and verification.
+
+Admin navigation is restricted to Admin and Profile. Passenger pages redirect Admin to its workspace; ticket purchases and other personal passenger operations reject Admin access. Administrative ticket inspection/verification is retained.

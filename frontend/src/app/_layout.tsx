@@ -6,6 +6,7 @@ import { useFonts } from 'expo-font';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme';
 import { AuthProvider } from '../auth/AuthProvider';
+import AdminRouteBoundary from '../auth/AdminRouteBoundary';
 import { AppAlertProvider } from '../components/AppAlert';
 
 export default function RootLayout() {
@@ -23,7 +24,7 @@ export default function RootLayout() {
     <AppAlertProvider>
       <AuthProvider>
         <StatusBar style="dark" />
-        <Stack screenOptions={{ headerShown: false }}>
+        <AdminRouteBoundary><Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="index" />
           <Stack.Screen name="login" />
           <Stack.Screen name="(tabs)" />
@@ -39,7 +40,7 @@ export default function RootLayout() {
           <Stack.Screen name="ticketing/purchase" />
           <Stack.Screen name="ticketing/[id]" />
           <Stack.Screen name="ticketing/login" />
-        </Stack>
+        </Stack></AdminRouteBoundary>
       </AuthProvider>
     </AppAlertProvider>
 

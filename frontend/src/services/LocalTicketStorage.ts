@@ -194,6 +194,8 @@ export function localTicketRequest(method: string, path: string, input: unknown 
         fail('Your session changed. Please sign in again.', 401);
     };
     await assertSession();
+    if (user.role === 'admin' && !(method === 'GET' && path === '/users/profile') && !['/tickets/verify', '/tickets/redeem'].includes(path))
+      fail('Admin accounts manage and verify tickets. Use a passenger account for personal journeys and purchases.', 403);
     const journeys = (await mainAccount.loadCatalogue()).filter(j => j.active);
     const db = await read();
     await assertSession();

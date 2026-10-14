@@ -269,3 +269,13 @@ test('Help & Support saves reports locally once and states that they were saved 
   await act(async () => { pending.resolve({ ...notification, id: notification._id, status: 'Open', response: '' }); });
   expect(Alert.alert).toHaveBeenCalledWith('Saved', 'Your issue is available to the admin on this device.');
 });
+
+
+test('Admin profile offers profile/settings without passenger links or notification queries', async () => {
+  mockAuth.session.user = { ...user, role: 'admin' };
+  jest.mocked(api.getUserProfile).mockResolvedValue({ data: mockAuth.session.user } as any);
+  await render(<Profile />);
+  expect(text()).toContain('Edit Profile'); expect(text()).toContain('Settings');
+  for (const label of ['My Tickets', 'Saved Routes', 'Notifications', 'Help & Support']) expect(text()).not.toContain(label);
+  expect(api.getNotifications).not.toHaveBeenCalled();
+});

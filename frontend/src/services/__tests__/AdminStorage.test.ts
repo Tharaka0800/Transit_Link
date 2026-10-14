@@ -151,3 +151,19 @@ test('maintenance refuses concurrent mutations instead of racing a snapshot', as
   release(); await work;
   expect((await main.getAdminState()).users.find(u => u._id === 'demo-primary')?.disabled).toBe(false);
 });
+
+
+test('Admin passenger operations are denied while management and verification remain available', async () => {
+  await passenger(); const issued = await ticket(); await admin();
+  await expect(loadTickets()).rejects.toMatchObject({ response: { status: 403 } });
+  await expect(quoteJourney('DEMO-T-KDY', 'standard', 'now')).rejects.toMatchObject({ response: { status: 403 } });
+  await expect(purchaseQuote('any-quote')).rejects.toMatchObject({ response: { status: 403 } });
+  await expect(main.getSavedRoutes()).rejects.toMatchObject({ response: { status: 403 } });
+  await expect(main.addSampleSavedRoute()).rejects.toMatchObject({ response: { status: 403 } });
+  await expect(main.getNotifications()).rejects.toMatchObject({ response: { status: 403 } });
+  await expect(main.createSupportReport('Admin report', 'A report')).rejects.toMatchObject({ response: { status: 403 } });
+  expect((await loadAdminTickets())[0].id).toBe(issued.id);
+  expect((await verifyQR(issued.qrPayload!)).eligible).toBe(true);
+  await redeemQR(issued.qrPayload!);
+  expect((await main.getUserProfile()).role).toBe('admin');
+});

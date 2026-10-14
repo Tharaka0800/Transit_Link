@@ -127,3 +127,12 @@ test('unsubscribes on unmount and ignores a later restoration', async () => {
   expect(mockUnsubscribe).toHaveBeenCalledTimes(1);
   await act(async () => { pending.resolve(session('officer')); });
 });
+
+
+test('Admin navigation hides passenger tabs while preserving Admin and Profile', async () => {
+  jest.mocked(getAuthSession).mockResolvedValueOnce(session('admin') as any);
+  await render(<TabLayout />);
+  for (const name of ['home', 'routes', 'tickets']) expect(JSON.parse(screen!.root.findByProps({ testID: name }).props.children).href).toBeNull();
+  expect(JSON.parse(screen!.root.findByProps({ testID: 'admin' }).props.children).href).toBe('/(tabs)/admin');
+  expect(screen!.root.findByProps({ testID: 'profile' })).toBeDefined();
+});

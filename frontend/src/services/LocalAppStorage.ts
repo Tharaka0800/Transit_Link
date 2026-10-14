@@ -464,6 +464,7 @@ export function getNotifications(params?: { type?: NotificationType | 'all' }): 
   return serially(async () => {
     const database = await readDatabase();
     const user = requireUser(database, identity);
+    if (user.role === 'admin') throw new LocalAppError('Passenger features are unavailable to Admin accounts.', 403);
     const owned = database.notifications.filter((entry) => entry.userId === user._id);
     if (params?.type && params.type !== 'all' && !notificationTypes.includes(params.type)) throw new LocalAppError('Select a valid notification type.');
     return {
@@ -478,6 +479,7 @@ export function createNotification(input: NotificationInput): Promise<LocalNotif
   return serially(async () => {
     const database = await readDatabase();
     const user = requireUser(database, identity);
+    if (user.role === 'admin') throw new LocalAppError('Passenger features are unavailable to Admin accounts.', 403);
     const title = requiredText(input?.title, 'Title');
     const message = requiredText(input?.message, 'Message');
     const type = input.type ?? 'general';
@@ -495,6 +497,7 @@ export function markNotificationRead(id: string): Promise<LocalNotification> {
   return serially(async () => {
     const database = await readDatabase();
     const user = requireUser(database, identity);
+    if (user.role === 'admin') throw new LocalAppError('Passenger features are unavailable to Admin accounts.', 403);
     const item = database.notifications.find((entry) => entry._id === id && entry.userId === user._id);
     if (!item) throw new LocalAppError('Notification not found.', 404);
     if (!item.isRead) {
@@ -511,6 +514,7 @@ export function deleteNotification(id: string): Promise<{ message: string; id: s
   return serially(async () => {
     const database = await readDatabase();
     const user = requireUser(database, identity);
+    if (user.role === 'admin') throw new LocalAppError('Passenger features are unavailable to Admin accounts.', 403);
     if (!database.notifications.some((entry) => entry._id === id && entry.userId === user._id)) throw new LocalAppError('Notification not found.', 404);
     database.notifications = database.notifications.filter((entry) => !(entry._id === id && entry.userId === user._id));
     await writeDatabase(database);
@@ -521,6 +525,7 @@ export function deleteNotification(id: string): Promise<{ message: string; id: s
 
 function routeOwner(database: LocalDatabase, identity: Identity): string | null {
   assertIdentity(database, identity);
+  if (database.users.find(u => u._id === database.session?.userId)?.role === 'admin') throw new LocalAppError('Saved routes are a passenger feature.', 403);
   return database.session?.userId ?? null;
 }
 export function getSavedRoutes(): Promise<SavedRoute[]> {
@@ -622,6 +627,7 @@ export function createSupportReport(title: string, message: string): Promise<Sup
   const identity = captureIdentity();
   return serially(async () => {
     const database = await readDatabase(); const user = requireUser(database, identity);
+    if (user.role === 'admin') throw new LocalAppError('Passenger features are unavailable to Admin accounts.', 403);
     const now = new Date().toISOString();
     const report: SupportReport = { id: Crypto.randomUUID(), userId: user._id, title: requiredText(title, 'Subject'), message: requiredText(message, 'Description'), status: 'Open', response: '', createdAt: now, updatedAt: now };
     administration(database).reports.push(report);
@@ -634,6 +640,7 @@ export function getMySupportReports(): Promise<SupportReport[]> {
   const identity = captureIdentity();
   return serially(async () => {
     const database = await readDatabase(); const user = requireUser(database, identity);
+    if (user.role === 'admin') throw new LocalAppError('Passenger features are unavailable to Admin accounts.', 403);
     return administration(database).reports.filter(r => r.userId === user._id);
   });
 }

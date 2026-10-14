@@ -26,7 +26,7 @@ export default function TabLayout() {
   const isOfficer = session?.user.role === 'officer';
   return (
     <Tabs
-      initialRouteName="home"
+      initialRouteName={isAdmin ? "admin" : "home"}
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarActiveTintColor: colors.brand,
@@ -50,9 +50,9 @@ export default function TabLayout() {
         },
       })}
     >
-      <Tabs.Screen name="home" options={{ title: 'Home' }} />
-      <Tabs.Screen name="routes" options={{ title: 'Routes' }} />
-      <Tabs.Screen name="tickets" options={{ title: 'Tickets' }} />
+      <Tabs.Screen name="home" options={{ title: 'Home', href: isAdmin ? null : '/(tabs)/home' }} />
+      <Tabs.Screen name="routes" options={{ title: 'Routes', href: isAdmin ? null : '/(tabs)/routes' }} />
+      <Tabs.Screen name="tickets" options={{ title: 'Tickets', href: isAdmin ? null : '/(tabs)/tickets' }} />
       <Tabs.Screen name="profile" options={{ title: 'Profile' }} />
       <Tabs.Screen name="admin" options={{ title: 'Admin', href: isAdmin ? '/(tabs)/admin' : null }} />
       <Tabs.Screen name="officer-dashboard/index" options={{ title: 'Officer', href: isOfficer ? '/(tabs)/officer-dashboard' : null }} />

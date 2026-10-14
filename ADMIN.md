@@ -1,6 +1,8 @@
 # Admin workspace
 
-Sign in with the main app admin account: `admin@transitlink.lk` / `admin123`. Admin login opens the Admin tab. All features operate on this installation only; no backend or MongoDB is required and no phone-to-phone synchronization is performed.
+Sign in with the main app admin account: `admin@transitlink.lk` / `admin123`. Admin login opens the Admin tab. Admins see only the Admin and Profile tabs. Passenger journeys, personal tickets/purchases, saved routes, notifications, and support submission are unavailable to Admin; use a passenger account for those actions. Direct links redirect to the Admin workspace, and personal-operation services reject Admin access. Previously purchased Admin tickets remain preserved and visible in administrative ticket search. Admin ticket verification, account settings, and logout remain available.
+
+All features operate on this installation only; no backend or MongoDB is required and no phone-to-phone synchronization is performed.
 
 ## Features
 

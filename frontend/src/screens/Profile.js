@@ -45,6 +45,7 @@ const tabPaths = {
 
 const Profile = () => {
   const { session, isRestoring } = useAuth();
+  const isAdmin = session?.user.role === 'admin';
   const tokenRef = useRef(session?.token);
   tokenRef.current = session?.token;
   const mountedRef = useRef(true);
@@ -73,7 +74,7 @@ const Profile = () => {
       setLoadError(null);
       const [profileRes, notifRes] = await Promise.all([
         getUserProfile(),
-        getNotifications(),
+        isAdmin ? Promise.resolve({ data: { unreadCount: 0 } }) : getNotifications(),
       ]);
       if (!isActive()) return;
       setUser(profileRes.data);
@@ -91,7 +92,7 @@ const Profile = () => {
     } finally {
       if (isActive()) setLoading(false);
     }
-  }, [session?.token]);
+  }, [session?.token, isAdmin]);
 
   useFocusEffect(
     useCallback(() => {
@@ -278,7 +279,7 @@ const Profile = () => {
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.backBtn}
-            onPress={() => router.navigate('/(tabs)/home')}
+            onPress={() => router.navigate(isAdmin ? '/(tabs)/admin' : '/(tabs)/home')}
           >
             <Ionicons name="arrow-back" size={24} color={colors.gray900} />
           </TouchableOpacity>
@@ -291,7 +292,7 @@ const Profile = () => {
         </View>
 
         <View style={styles.menu}>
-          {menuItems.map((item, index) => (
+          {menuItems.filter(item => !isAdmin || ['edit', 'settings'].includes(item.key)).map((item, index) => (
             <TouchableOpacity
               key={item.key}
               style={[
