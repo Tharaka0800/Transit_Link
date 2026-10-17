@@ -1,9 +1,18 @@
 import * as local from './LocalAppStorage';
+import { debugOfflineDatabase } from '../utils/debugOfflineDatabase';
 
 // Keep the response shapes used by teammates' screens while performing every
 // operation locally. No server URL, HTTP client, or internet connection is used.
-export const registerUser = async (data) => ({ data: await local.registerUser(data) });
-export const loginUser = async (data) => ({ data: await local.loginUser(data) });
+export const registerUser = async (data) => {
+  const user = await local.registerUser(data);
+  await debugOfflineDatabase();
+  return { data: user };
+};
+export const loginUser = async (data) => {
+  const user = await local.loginUser(data);
+  await debugOfflineDatabase();
+  return { data: user };
+};
 export const getUserProfile = async () => ({ data: await local.getUserProfile() });
 export const updateUserProfile = async (data) => ({ data: await local.updateUserProfile(data) });
 export const deleteUserProfile = async () => ({ data: await local.deleteUserProfile() });

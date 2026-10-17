@@ -19,6 +19,7 @@ import Button from '../components/Button';
 import { loginUser, registerUser, saveAuth } from '../services/api';
 import { getLandingRoute } from '../auth/AuthProvider';
 import { showAlert } from '../components/AppAlert';
+import { debugOfflineDatabase } from '../utils/debugOfflineDatabase';
 import { colors } from '../theme';
 
 const HERO = require('../../assets/login-hero.png');
@@ -43,6 +44,7 @@ const Login = () => {
 
   useEffect(() => {
     mounted.current = true;
+    void debugOfflineDatabase();
     return () => { mounted.current = false; generation.current += 1; };
   }, []);
 
