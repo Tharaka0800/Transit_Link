@@ -11,6 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import Navbar from '../components/Navbar';
+import Button from '../components/Button';
 import { getSavedRoutes, addSampleSavedRoute, toggleSavedRoute } from '../services/api';
 import { useAuth } from '../auth/AuthProvider';
 import { showAlert } from '../components/AppAlert';
@@ -131,6 +132,8 @@ const RoutesScreen = () => {
       </TouchableOpacity>
 
       <ScrollView contentContainerStyle={styles.list}>
+        <Button onPress={() => router.push('/route-search')} style={{ marginBottom: 12 }}>Search Routes</Button>
+        <Button variant="secondary" onPress={() => router.push('/bus-map')} style={{ marginBottom: 16 }}>Open Bus Map</Button>
         {(loading || isRestoring) && <ActivityIndicator color={colors.brand} style={{ marginVertical: 16 }} />}
         {routes.map((route) => {
           const isTrain = route.mode === 'Train';

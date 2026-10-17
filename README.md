@@ -10,7 +10,7 @@ npm install
 npx expo start
 ```
 
-Press `a` for Android or `w` for web. Use an SDK 51-compatible Expo Go client or development build. Metro supplies the development bundle; after loading it, the app's data operations work offline. A standalone build can launch without Metro.
+Press `a` for Android or `w` for web. Use an SDK 51-compatible Expo Go client or development build. Metro supplies the development bundle; after loading it, local profile and Officer operations work offline. Online ticket booking requires the Express backend. A standalone build can launch without Metro.
 
 ## Demo credentials
 
@@ -63,6 +63,8 @@ See [frontend setup and offline checks](frontend/README.md) for demonstration st
 | `frontend/src/components` | Shared visual controls |
 | `frontend/src/services` | Local account, session, notification, and route persistence |
 | `frontend/src/utils` | Local Officer incident storage |
-| `backend` | Retained Express/MongoDB/JWT reference implementation, unused by the current frontend |
+| `backend` | Express/MongoDB/JWT server for online tickets, seat availability, booking, and verification |
 
-The backend does not need to run. Its original setup and endpoints remain documented in [backend/README.md](backend/README.md).
+The backend must run for online ticket features. Local account, profile, notification, saved-route and Officer operations remain offline. Backend setup is documented in [backend/README.md](backend/README.md).
+
+Online ticket accounts are separate from local app accounts. Open Tickets ? Sign in to use your existing backend credentials or register an online ticket account. Configure EXPO_PUBLIC_API_URL in frontend/.env to your reachable backend origin. Your ticketing screens, seats, QR validation and demo payment methods remain available alongside the local features.
